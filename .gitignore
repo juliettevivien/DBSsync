@@ -1,0 +1,10 @@
+test.ipynb
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.*/
+**/__pycache__/
+functions/__pycache__/io.cpython-310.pyc

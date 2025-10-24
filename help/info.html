@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" >
+    <title>Documentation ReSync GUI</title>
+    <link href="info_style.css" rel="stylesheet" >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <header>
+        <div class="header">
+            <img src="images/logo-resync.png" alt="Logo Home" class="logo-resync">
+            <h1>Documentation ReSync GUI</h1>
+        </div>
+        <section>
+            <h2 class="title-main-header">Open-source Python GUI for synchronizing intracranial data from DBS electrodes with external data</h2>
+        </section>
+    </header>
+    <main>
+        <div class="main-widget">
+            <div class="main-text">
+                <section id="general-information">
+                    <h3>General Information</h3>
+                    <p>
+                        ReSync GUI is a Python Graphical User Interface (GUI) for synchronizing intracranial data from Deep Brain Stimulation 
+                        (DBS) electrodes with external data. It is designed to be user-friendly and to facilitate the synchronization 
+                        process. The GUI is built using the PyQt5 library and (should be) compatible with Windows, MacOS, and Linux operating 
+                        systems. It is open-source and can be freely downloaded and modified by users.
+                    </p>
+                    <h4>Supported data formats:</h4> 
+                    <p>
+                        ReSync GUI synchronizes data from DBS electrodes ("intracranial data") with external data.<br>
+                        The supported data formats are:
+                        <ul>
+                            <li>For the intracranial data: .mat<br>
+                            The GUI is designed to be used on files preprocessed with the 
+                            <a href="https://github.com/neuromodulation/perceive" target="_blank" class="clickable-link">perceive</a> toolbox.
+                            This toolbox loads the .JSON file recovered from the clinician recording tablet after a recording session, 
+                            and generates <a href="bids.neuroimaging.io" target="_blank" class="clickable-link">BIDS-</a>inspired subject 
+                            and session folders with the ieeg format specifier. All time series data are being exported as FieldTrip '.mat' files.
+                            </li><br>
+                            <li>For the external data: .xdf, .Poly5.
+                                <ul>
+                                    <li>The .Poly5 format is the output of <a href="https://www.tmsi.com/" target="_blank" class="clickable-link">TMSi</a> data recorder</li>
+                                    <li>The .xdf format is the output of <a href="https://labstreaminglayer.org/#/" target="_blank" class="clickable-link">Lab Streaming Layer (LSL)</a></li>
+                                </ul>
+                                
+                            </li>
+                        </ul>
+                    </p>
+                    <h4>Supported saving formats after synchronization:</h4>
+                    <p>
+                        The synchronized data can be saved in the following formats:
+                        <ul>
+                            <li>If the input format was .Poly5:</li>
+                            <ul>
+                                <li>.mat</li>
+                            </ul>
+                            <li>If the input format was .xdf:</li>
+                            <ul>
+                                <li>.SET</li>
+                                <li>.pkl</li>
+                            </ul>
+                        </ul>
+                    </p>
+                </section>
+    
+                <section id="installation">
+                    <h3>Installation</h3>
+                    <p>
+                        <ol class="colored-numbers">
+                            <li>
+                                Clone the repository: <span class="code-text">git clone https://github.com/juliettevivien/Resync_GUI</span>
+                            </li><br>
+                            <li>
+                                Navigate to the local version of ReSync-GUI and create the virtual environment
+                            </li>
+                            <ul>
+                                <li>Manually, using anaconda prompt: follow the commands from Create virtual env.txt</li>
+                                <li>Using pip: <span class="code-text">pip install -r requirements.txt </span></li>
+                                <li>Using Conda: <span class="code-text">conda create --name <env_name> --file requirements.txt</span></li>
+                            </ul><br>
+
+                            <li>
+                                Activate the virtual environment using the command: <span class="code-text">conda activate env_name</span></li>
+                            </li><br>
+
+                            <li>
+                                Run the GUI using the command: <span class="code-text">python ReSync_GUI.py </span>
+                            </li>
+                        </ol>
+                    </p>
+                </section>
+                
+                <section id="usage">
+                    <h3>Usage</h3>
+                    <p>
+                        <ol class="colored-numbers">
+                            <li id="synchronization">
+                                <h4><b>Synchronization of intracranial data with external data</b></h4>
+                            </li>
+                            <ol>
+                                <li>
+                                    Open the GUI by running the command: <span class="code-text">python ReSync_GUI.py</span>
+                                </li><br>
+                                <li>
+                                    Load the intracranial data by clicking on the "Load Intracranial Data" button.
+                                </li><br>
+                                <li>
+                                    Load the external data by clicking on the "Load External Data" button. If the external data is in .xdf format,
+                                    ReSync GUI will automatically detect the streams contained in the file and a pop up window will ask to select
+                                    the stream containing the bipolar channel used for synchronization.
+                                </li><br>
+                                <li>
+                                    For each data type, select the channel containing the synchronization artifacts. 
+                                    See <a href="#sync-protocol" class="clickable-link">the synchronization protocol</a> 
+                                    for more information about how to create the artifacts during the recording. 
+                                    You can plot the channel to make sure you see the artifacts before automatically
+                                    detecting them.
+                                </li><br>
+                                <li>
+                                    Detect the first artifact, either by using the automatic or the manual method. See on the <a href=#figure1>figure 1</a> below which sample should be detected as the start of the artifact for a reliable synchronization.
+                                </li><br>
+                            </ol>
+                            <h5 id="figure1">Figure 1: Screenshot of the GUI's Home Page.</h5>
+                            <img src="images/main-window.png" alt="Screenshot of the GUI's Home Page" class="gui-screenshot">
+                            <p class="img-legend">On the left side is the pannel 
+                                about the intracranial recording, on the right side is the pannel for the external 
+                                recording. In this example, artifacts were selected automatically by ReSync and 
+                                the selection is correct:
+                                <ul class="img-legend">
+                                    <li>Intracranial data: the point selected as the start of the artifact should 
+                                        always be the 4th sample after the last one before the amplitude drops (or increases when 
+                                        the polarity of the signal is reversed compared to this example)</li><br>
+                                    <li>External data: the point selected as the start of the artifact shoud always
+                                        be the first lowest sample after the amplitude changes (or the first highest 
+                                        sample when the polarity of the signal is reversed compared to this example)
+                                    </li>
+                                </ul>
+                            </p><br><br>
+
+                            <li id ="timeshift">
+                                <h4><b>Timeshift Analysis</b></h4>
+                                Check the synchronization consistency over time: assess the "timeshift". Plot the 
+                                synchronized data together and verify if the last artifact is also aligned. 
+                                Checking the timeshift is an important step to ensure that there was no data loss 
+                                during the recording and no deviation from the 250Hz sampling frequency of the Percept device. 
+                                <ul>
+                                    <li> If the absolute value of the timeshift is higher than 200ms, it might be a good 
+                                        idea to check for packet loss in the intracranial data. </li>
+                                    <li> If the absolute value of the timeshift is smaller but still higher than 10ms 
+                                        (see <a href=#figure2>figure 2</a> for an example), it might be a good idea to adjust the 
+                                        effective sampling frequency of the intracranial data.</li>
+                                    <li> IMPORTANT: do NOT adjust the sampling frequency if the timeshift is >200ms 
+                                        because this is a sign of packet loss, not of inaccurate sampling frequency. 
+                                        You should first look for where the missing packets of data are, replace them by NaNs, 
+                                        then synchronize again and only then you can correct the sampling frequency.</li>
+                                </ul>    
+                            </li>
+                            <h5 id="figure2">Figure 2: Screenshot of the GUI's Timeshift Analysis page.</h5>
+                            <img src="images/timeshift-example.png" alt="Screenshot of the GUI's Timeshift Analysis page" class="gui-screenshot">
+                            <p class="img-legend">
+                                In this example, artifacts were mnually selected in the intracranial and external
+                                recordings. The timeshift is calculated as the difference between the last artifact
+                                in the intracranial data and the last artifact in the external data. In this example,
+                                the timeshift is 90ms, which means that the sampling frequency of the intracranial data 
+                                should be corrected before saving.
+                            </p><br><br>                         
+                            
+                            <li id = "effectivesf" >
+                                <h4><b>Effective Sampling Frequency Correction</b></h4>
+                                To calculate the effective sampling frequency of the intracranial data, you can click on 
+                                "Effective sampling frequency correction". In this window, both the intracranial and the 
+                                external channels are plotted (see <a href=#figure3>figure 3</a> below for an example).
+                                You have to detect manually the first and the last artifact in each channel (see 
+                                <a href=#figure4>figure 4</a> below for an example).
+                                The effective sampling frequency is calculated as the number of samples between 
+                                the two artifacts (in the intracranial signal) divided by the time difference between
+                                the last and the first artifact (in the external signal). Once calculated, this "effective"
+                                sampling frequency is automatically applied to the intracranial file. Please reselect the 
+                                first artifact in the intracranial data in the home page to apply the correction before saving 
+                                or proceeding to ECG artifact cleaning.
+                                You can also plot the corrected data in the timeshift analysis window again to check if the 
+                                synchronization is now correct (timeshift should be close to 0 after correction).                      
+                            </li>
+                            <h5 id="figure3">Figure 3: Screenshot of the GUI's Effective Sampling frequency window.</h5>
+                            <img src="images/eff-sf-window.png" alt="Screenshot of the GUI's effective sampling frequency window" class="gui-screenshot">
+                            <p class="img-legend">
+                                On the left side is the pannel about the intracranial recording, on the right 
+                                side is the pannel for the external recording. The signal of both channel is automatically 
+                                plotted as a scatter plot to facilitate manual selection of the first and last artifact in each channel.
+                            </p><br>                         
+                            <h5 id="figure4">Figure 4: Calculation of the effective sampling frequency of the intracranial signal.</h5>
+                            <img src="images/eff-sf-calculation.png" alt="Screenshot of how to calculate the effective sampling frequency of the intracranial signal" class="gui-screenshot">
+                            <p class="img-legend">
+                                The red crosses show the manual selection of the last artifact in each recording: it should correspond 
+                                to the beginning of the last stimulation pulse in both channels. The first artifacts were also previously
+                                selected. The effective sampling frequency is calculated as the number of samples between the two artifacts
+                                in the intracranial signal divided by the time difference between the last and the first artifact in the external signal.
+                                In this example, the effective sampling frequency is 249.98721215438817Hz.
+                            </p><br><br>
+
+                            <li id = "ecgcleaning">
+                                <h4><b>ECG Artifact Cleaning</b></h4>
+                                Optional: clean the ECG artifacts in the intracranial data (see <a href=#figure5>figure 5</a> below 
+                                for an overview of the ECG cleaning pipeline, and <a href=#figure6>figure 6</a> for an example of what
+                                the interface looks like).
+                                <h5 id="figure5">Figure 5: ECG cleaning pipeline.</h5>
+                                <img src="images/figure5.png" alt="Overview of the main steps to perform ECG artifact suppresion using ReSync" class="ecg-pipeline">
+                                <br>                               
+                                To clean the ECG artifacts in the intracranial data, you can click on "ECG cleaning".
+                                In this window, you can select an intracranial channel that contains ECG artifacts (and plot it to
+                                assess the presence of ECG artifacts). You can apply a low-pass filter to the intracranial
+                                data to remove the stimulation artifacts before applying the ECG cleaning algorithm.
+                                If available, you can also select a synchronized external ECG channel to help for the detection
+                                of the R-peaks.
+                                Choose a threshold for the R-peak detection, and click on "Detect R-peaks".
+                                The detected R-peaks are automatically plotted below, and you can check if the detection is correct.
+                                If the detection is not correct, you can adjust the threshold and click on "Detect R-peaks" again.
+                                Once the R-peaks are correctly detected, you can select one of the three cleaning methods available 
+                                in the toolbox:    
+                                <ul>
+                                    <li><b>Interpolation method:</b> this method performs a linear interpolation of the R-peaks in the intracranial data.</li>
+                                    <li><b>Template subtraction:</b> this method creates an average template of the QRS complex surrounding the detected R-peaks.
+                                        At each R-peak, the template is fitted using linear fit, the tails are equalized and the tempalte is substracted from the 
+                                        corresponding R-peak in the intracranial data.
+                                    </li>
+                                    <li><b>Singular value decomposition:</b> this method creates a matrix of all QRS complexes around the detected R-peaks.
+                                        Using singular value decomposition, it plots the first 4 components with their explained variance and prompts the user to
+                                        choose how many components to keep for the reconstruction of the QRS complex.
+                                        At the level of each R-peak, the chosen components are used to reconstruct the QRS complex around that specific R-peak
+                                        and the reconstructed QRS complex is then fitted using linear fit, the tails are equalized and the resulting QRS complex
+                                        is substracted from the corresponding R-peak in the intracranial data.
+                                    </li>
+                                </ul>  
+                                This methods are reproduced from the paper of <a href="https://www.sciencedirect.com/science/article/pii/S1388245722009488" target="_blank" class="clickable-link">Stam and colleagues (2023)</a>: 
+                                <br><small> M.J. Stam, B.C.M. van Wijk, P. Sharma, M. Beudel, D.A. Piña-Fuentes, R.M.A. de Bie, P.R. Schuurman, W.-J. Neumann, A.W.G. Buijink,
+                                A comparison of methods to suppress electrocardiographic artifacts in local field potential recordings,
+                                Clinical Neurophysiology,
+                                Volume 146,
+                                2023,
+                                Pages 147-161,
+                                ISSN 1388-2457,
+                                https://doi.org/10.1016/j.clinph.2022.11.011.</small><br><br>
+                                Three automatic plots will be generated:
+                                <ul>
+                                    <li>the first plot shows the average template used for the cleaning</li>
+                                    <li>the second plot shows an overlap of the raw and cleaned channels</li>
+                                    <li>the third plot shows an overlap of the power spectrum from the raw and cleaned channels</li>
+                                </ul>     
+                                <h5 id="figure6">Figure 6: Screenshot of the GUI's ECG cleaning window.</h5>
+                                <img src="images/ecg-cleaning-window.png" alt="Screenshot showing the main steps performed in the GUI and the automatic plots displayed" class="gui-screenshot">
+                                <p class="img-legend">
+                                    In this example the ECG artifacts were detected in the intracranial data using an external ECG channel to help the detection.
+                                </p>
+                                <ul class="img-legend">
+                                    <li>The first plot displays the detected R-peaks in both the external channel (light traces) and the intracranial channel (dark traces).</li>
+                                    <li>The second plot shows the average shape of the ECG artifact, reconstructed using 4 components from the singular value decomposition method.</li>
+                                    <li>The third plot shows an overlap of the raw and cleaned channel after applying SVD4 (SVD method using 4 components).</li>
+                                    <li>The fourth plot shows an overlap of the power spectrum from the raw and cleaned channels after applying SVD4.</li>
+                                </ul>
+                                <p class="img-legend">
+                                    The heart rate is also automatically computed and displayed in the ECG cleaning window.
+                                    <br>If the cleaning is satisfactory, you can click on "Confirm cleaning and keep channel".
+                                </p>
+                            </li><br><br>  
+
+                            <li id = "saving">
+                                <h4><b>Saving the synchronized data</b></h4>
+                                Choose the fileformat in which you want to save the synchronized data, and a folder to save the results.
+                                <ul>
+                                    <li>If the external data was in .xdf format, you can choose to save the synchronized data in .SET or .pkl format.</li>
+                                    <li>If the external data was in .Poly5 format, you can only save the synchronized data in .mat format.</li>
+                                </ul>
+                                IMPORTANT: if your xdf file contains multiple streams with various sampling frequencies, do not save in .SET format, 
+                                because the .SET format does not support multiple sampling frequencies. In this case, you can only save in .pkl format.
+                                You can choose to save all recordings/streams in a single pkl file, or to save each recording/stream in a separate pkl file.
+                            </li><br>
+                        </ol>
+                    </p>
+                </section>
+
+                <section id="sync-protocol">
+                    <h3>Synchronization Protocol</h3>
+                    <p>
+                        The synchronization protocol is a set of guidelines to help you create synchronization artifacts 
+                        during the recording. These artifacts are used later on to synchronize the intracranial data with the external data thanks to this GUI.
+                        <h4>Steps:</h4>
+                        <ol class="colored-numbers">
+                            <li>
+                                <b>Prepare the recording:</b> Setup the BrainSense Streaming mode. Deactivate the ramp option of the stimulation on the clinician recording tablet. 
+                                Keep the stimulation ON, but set it at 0mA bilaterally.
+                            </li><br>
+                            <li>
+                                <b>Start the recording:</b> Start the recording of the intracranial data and the external data at the same time.
+                            </li><br>
+                            <li>
+                                <b>Generate the artifacts:</b> In the clinician recording tablet, increase the stimulation amplitude to 1mA 
+                                unilaterally in one step. 
+                                This will generate a clear artifact in the intracranial data, which will be used for synchronization. 
+                                Try to always perform the artifact on the same side.
+                            </li><br>
+                            <li>
+                                <b>Perform your recording</b> After generating the artifact, decrease the stimulation amplitude to 0mA 
+                                bilaterally if you are recording in DBS OFF, or slowly ramp up the stimulation back to the clinical 
+                                settings if recording in DBS ON.
+                            </li><br>
+                            <li>
+                                <b>Repeat the artifact at the end:</b> Repeat the stimulation pulses at the end, before stopping the streaming.
+                                (Do not forget to put both hemispheres at 0mA before doing the pulses, and do the pulses ON THE SAME SIDE 
+                                as the first artifact).
+                            </li><br>
+                            <li>
+                                <b>Stop the recording:</b> Stop the recording of the intracranial data and the external data.
+                            </li>
+                    </p>
+                </section>
+            </div>
+
+            <section id = "menu">
+                <p class="menu-header">On this page</p>
+                <ol class="colored-numbers">
+                    <li><a href="#general-information">General Information</a></li>
+                    <li><a href="#installation">Installation</a></li>
+                    <li><a href="#usage">Usage</a></li>
+                    <ol>
+                        <li><a href="#synchronization">Synchronization</a></li>
+                        <li><a href="#timeshift">Timeshift Analysis</a></li>
+                        <li><a href="#effectivesf">Sampling Frequency correction</a></li>
+                        <li><a href="#ecgcleaning">ECG cleaning</a></li>
+                        <li><a href="#saving">Saving recordings</a></li>
+                    </ol>
+                    <li><a href="#sync-protocol">Synchronization Protocol</a></li>
+                </ol>
+            </section>
+        </div>
+    </main>
+    <footer>
+        <div class="footer">
+            <a target="_blank" href="https://x.com/vivien_juliette" class="lien-icone">
+                <img src="images/logo-x-black.png" alt="Logo Twitter" class="logo-img">
+            </a>
+            <a target="_blank" href="https://www.linkedin.com/in/juliette-vivien-969ba7143/" class="lien-icone">
+                <img src="images/logo-LinkedIn.png" alt="Logo Linkedin" class="logo-img">
+            </a>
+            <a target="_blank" href="https://github.com/juliettevivien" class="lien-icone">
+                <img src="images/logo-github.png" alt="Logo Github" class="logo-img">
+            </a>
+            <a target="_blank" href="mailto:vivien.juliette@gmail.com" class="lien-icone">
+                <img src="images/logo-mail.png" alt="Logo email" class="logo-img" title="vivien.juliette@gmail.com">
+            </a>
+        </div>
+    </footer>
+    <script>
+        document.addEventListener("scroll", function () {
+            const header = document.querySelector("header");
+            const menu = document.getElementById("menu");
+            const headerBottom = header.offsetTop + header.offsetHeight;
+
+            if (window.scrollY > headerBottom) {
+                menu.classList.add("menu-centered");
+            } else {
+                menu.classList.remove("menu-centered");
+                menu.style.top = headerBottom + "px"; // Aligns it just below the header
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+        adjustMenuPosition(); // Run on page load
+    });
+
+    document.addEventListener("scroll", adjustMenuPosition); // Run on scroll
+
+    function adjustMenuPosition() {
+        const header = document.querySelector("header");
+        const menu = document.getElementById("menu");
+        const headerBottom = header.offsetTop + header.offsetHeight;
+
+        if (window.scrollY > headerBottom) {
+            menu.classList.add("menu-centered");
+        } else {
+            menu.classList.remove("menu-centered");
+            menu.style.top = headerBottom + "px"; // Align just below the header
+        }
+    }
+    </script>
+</body>

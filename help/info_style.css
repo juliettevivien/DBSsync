@@ -1,0 +1,236 @@
+a {
+    text-decoration: none;
+    color: #000000;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+body {
+    margin: 0; /* Reset default margin */
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Stack children vertically */
+    padding: 1rem; /* Add padding for small screens */
+}
+
+h1, h2, h3, h4, h5 {
+    font-family: 'Manrope', sans-serif;
+}
+
+p, li {
+    font-family: 'Nunito', sans-serif;
+}
+
+section {
+    margin-bottom: 2rem; /* Adjusted for better spacing */
+    padding: 2vw; /* Scales based on viewport width */
+    background-color: #fff;
+}
+
+.clickable-link {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.clickable-link:hover {
+    text-decoration: none;
+}
+
+.gui-screenshot {
+    display: block;
+    margin: 1rem auto;
+    max-width: 100%; /* Ensure image does not exceed container width */
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+}
+
+.ecg-pipeline {
+    display: block;
+    margin: 1rem 0; /* Removes horizontal auto-centering */
+    max-width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+}
+
+.img-legend {
+    font-size: 0.8rem;
+    text-align: left;
+    margin-top: 0.5rem;
+}
+
+.menu-header {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.5rem; /* Scales better with rem */
+}
+
+.colored-numbers {
+    list-style-type: none;
+    counter-reset: list;
+}
+
+.colored-numbers > li {
+    counter-increment: list;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.colored-numbers > li::before {
+    content: counter(list);
+    position: absolute;
+    left: -2rem; /* Adjusted to align better on smaller screens */
+    top: -0.2rem;
+    color: #cd9ddc;
+    font-weight: bold;
+    font-size: 1.2rem;
+    font-family: 'Manrope', sans-serif;
+}
+
+.colored-numbers ul {
+    list-style-type: disc;
+    margin-left: 1.5em;
+    counter-reset: none;
+}
+
+.colored-numbers ul li {
+    margin-bottom: 0.5rem;
+}
+
+.colored-numbers ul li::before {
+    content: none;
+}
+
+.code-text {
+    font-family: 'Courier New', monospace;
+    background-color: #f0f0f0;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    border-radius: 0.5rem;
+}
+
+.logo-img {
+    height: 2vw; /* Responsive unit */
+    margin: 1rem 2vw 0.5rem 2vw;
+}
+
+.logo-resync {
+    height: 5vw; /* Adjusts with viewport */
+    margin: 1rem;
+}
+
+.footer {
+    background: linear-gradient(to right, #99CCFF, #99ff99);
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.header {
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 0 5vw; /* Adjust margin based on viewport */
+}
+
+.title-main-header {
+    display: flex;
+    justify-content: center;
+}
+
+.main-text {
+    margin-right: 15vw; /* Relative to viewport width */
+    padding: 2rem;
+    margin-top: -10vh;
+}
+
+.main-widget {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap; /* Allows wrapping for smaller screens */
+}
+
+#menu {
+    position: fixed; /* Keeps it visible during scrolling */
+    top: 100px; /* Adjust this to match the header height */
+    right: 0;
+    width: 15vw;
+    max-width: 220px;
+    background-color: rgba(153, 255, 153, 0.25);
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    transition: top 0.3s ease, transform 0.3s ease; /* Smooth transition */
+}
+
+a[href="#figure1"], a[href="#figure2"], a[href="#figure3"], a[href="#figure4"] {
+    text-decoration: underline;
+}
+
+a[href="#figure1"]:hover, a[href="#figure2"]:hover, a[href="#figure3"]:hover, a[href="#figure4"]:hover {
+    text-decoration: none;
+}
+
+/* Center the menu vertically on the right side when past the header */
+.menu-centered {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#installation, #usage, #examples, #general-information, #sync-protocol {
+    border: 1px solid #ccc;
+    background-color: rgba(153, 204, 255, 0.25);
+}
+
+/* Media queries for smaller screens */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column; /* Stack header elements */
+        margin: 1rem;
+    }
+
+    .main-text {
+        margin-right: 0;
+        margin-top: 0;
+        padding: 1rem;
+    }
+
+    #menu {
+        display: none; /* Hide menu on smaller screens */
+    }
+
+    .logo-img, .logo-resync {
+        height: auto;
+        max-width: 50%; /* Scale logo down */
+    }
+}
+
+
+/* Adjust styles for .code-text when printing */
+@media print {
+    #menu {
+        display: none;
+    }
+
+    .footer {
+        display: none;
+    }
+
+    .main-text {
+        margin: 0;
+        padding: 1rem;
+    }
+
+    .code-text {
+        font-size: 0.9rem; /* Reduce font size for printing */
+        word-wrap: break-word; /* Allow code to wrap to the next line */
+        white-space: pre-wrap; /* Ensure code blocks break lines properly */
+        border: none; /* Remove borders to simplify appearance */
+        padding: 0.2rem; /* Reduce padding */
+        -webkit-print-color-adjust: exact; /* Ensure colors are printed correctly */
+        print-color-adjust: exact;
+    }
+}
+
+
