@@ -330,6 +330,47 @@ def select_saving_folder(self):
         print(f"Selected folder: {folder_path}")
 
 
+def save_datasets(self):
+    # Check dataformat of external recording
+    ext_extension = self.dataset_extra.file_name.split('.')[-1]
+
+    # Determine saving format from config
+    saving_format_external = self.config["SavingFormatExternal"]
+    saving_format_internal = self.config["SavingFormatInternal"]
+    saving_format_all_as_one = self.config["SavingFormatAllAsOne"]
+    saving_all_as_one = self.config["SavingAllAsOne"]
+
+    if ext_extension == "xdf":
+        if saving_all_as_one:
+            if saving_format_all_as_one == ".pkl":
+                synchronize_datasets_as_one_pickle(self)
+            else:
+                QMessageBox.warning(
+                    self, "Saving Format Error", 
+                    f"Unsupported saving format for all-in-one: {saving_format_all_as_one} \nOnly .pkl is supported."
+                    )
+        else:
+            if saving_format_external == ".set" and saving_format_internal == ".set":
+                save_datasets_as_set(self)
+            elif saving_format_external == ".fif" and saving_format_internal == ".fif":
+                save_datasets_as_fif(self)  
+            elif saving_format_external == ".pkl" and saving_format_internal == ".pkl":
+                synchronize_datasets_as_pickles(self)
+            else:
+                QMessageBox.warning(
+                    self, "Saving Format Error", 
+                    f"Unsupported saving formats: External {saving_format_external}, Internal {saving_format_internal}"
+                    )   
+    else:
+        if saving_format_external == ".mat" and saving_format_internal == ".mat":
+                synchronize_datasets_as_mat(self)
+        else:
+            QMessageBox.warning(
+                self, "Saving Format Error", 
+                f"Unsupported saving formats for external file type {ext_extension}: External {saving_format_external}, Internal {saving_format_internal} \nOnly .mat is supported for non-xdf external files."
+                )
+
+
 def save_datasets_as_set(self):
     """
     Save synchronized datasets as .set files.

@@ -55,16 +55,7 @@ from functions.utils import get_start_end_times, find_similar_sample
 from functions.classes import PlotWindow
 
 
-    #######################################################################
-    #########                 FINDING THE R-PEAKS                 #########
-    #######################################################################   
-
-def find_r_peaks(self):
-    """
-    Find R-peaks in the LFP channel using either only the LFP channel itself,
-    or an additional external ECG channel synchronized with the LFP channel.
-    This function will be called when the user clicks the "Find R-peaks" button.
-    """
+def manual_override(self):
     # --- Create dialog ---
     dialog = QDialog()
     dialog.setWindowTitle("Set R-peak Detection Parameters")
@@ -136,11 +127,22 @@ def find_r_peaks(self):
     # --- Show dialog ---
     if dialog.exec_() == QDialog.Accepted:
         print(f"Polarity: {self.r_peak_polarity_lfp}, "
-              f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}")
+            f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}")
     else:
         return  # User canceled
 
-    ##################################################################
+##################################################################
+
+    #######################################################################
+    #########                 FINDING THE R-PEAKS                 #########
+    #######################################################################   
+
+def find_r_peaks(self):
+    """
+    Find R-peaks in the LFP channel using either only the LFP channel itself,
+    or an additional external ECG channel synchronized with the LFP channel.
+    This function will be called when the user clicks the "Find R-peaks" button.
+    """
 
     full_data = self.dataset_intra.synced_data.get_data()[
         self.dataset_intra.selected_channel_index_ecg
@@ -225,6 +227,11 @@ def find_r_peaks(self):
     self.btn_start_ecg_cleaning_interpolation.setEnabled(True)
     self.btn_start_ecg_cleaning_template_sub.setEnabled(True)
     self.btn_start_ecg_cleaning_svd.setEnabled(True)
+
+    # reset params after use 
+    self.r_peak_polarity_lfp = None
+    self.start_cleaning_time = None
+    self.end_cleaning_time = None
 
     print("R-peaks found and stored in the main window.")
 

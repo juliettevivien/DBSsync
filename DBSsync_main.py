@@ -15,16 +15,18 @@ import numpy as np
 import mne
 import webbrowser
 from functools import partial
+import json
 
 from functions.io import (
     select_saving_folder,
     load_int_file,
     load_ext_file,
-    save_datasets_as_set,
-    save_datasets_as_fif,
-    synchronize_datasets_as_pickles,
-    synchronize_datasets_as_one_pickle,
-    synchronize_datasets_as_mat
+    save_datasets,
+    # save_datasets_as_set,
+    # save_datasets_as_fif,
+    # synchronize_datasets_as_pickles,
+    # synchronize_datasets_as_one_pickle,
+    # synchronize_datasets_as_mat
     )
 from functions.find_artifacts import (
     detect_artifacts_intra,
@@ -62,7 +64,8 @@ from functions.ecg_cleaning import (
     find_r_peaks,
     start_ecg_cleaning_interpolation,
     start_ecg_cleaning_template_sub,
-    start_ecg_cleaning_svd   
+    start_ecg_cleaning_svd,
+    manual_override
 )
 from functions.utils import find_similar_sample
 from functions.classes import DataSet, Button, Toolbar
@@ -75,7 +78,10 @@ class SyncGUI(QMainWindow):
         #######################################################################
         super().__init__()
         self.folder_path = None
-        
+        self.r_peak_polarity_lfp = None  # initialize as None to allow for potential user override
+        self.start_cleaning_time = None  # initialize as None to allow for potential user override
+        self.end_cleaning_time = None  # initialize as None to allow for potential user override
+
         # Set up the main window
         self.setWindowTitle("ReSync GUI")
         self.setWindowIcon(QIcon("logo_resized.png"))
@@ -169,7 +175,9 @@ class SyncGUI(QMainWindow):
         self.dataset_intra = DataSet()  # Dataset for the intracranial recording (STN recordings from Percept). Should be .mat file
         self.dataset_extra = DataSet()  # Dataset for the extracranial recording (EEG for example) Should be .xdf or .Poly5 file
 
-
+        json_filename = 'config.json'
+        with open(json_filename, 'r') as f:
+            self.config =  json.load(f)
         #######################################################################
         #                        LAYOUT OF EACH GUI PAGE                      #
         #######################################################################
@@ -207,53 +215,57 @@ class SyncGUI(QMainWindow):
         self.label_saving_folder.setAlignment(PyQt5.QtCore.Qt.AlignCenter)
         saving_folder_layout.addWidget(self.label_saving_folder)
 
+        self.btn_save = Button("Save datasets", "lightyellow")
+        self.btn_save.clicked.connect(partial(save_datasets, self))
+        saving_folder_layout.addWidget(self.btn_save)
+
         main_layout.addLayout(saving_folder_layout)
 
-        # layout for saving from .xdf files
-        saving_xdf_layout = QHBoxLayout()
+        # # layout for saving from .xdf files
+        # saving_xdf_layout = QHBoxLayout()
 
-        self.label_saving_xdf = QLabel("If the external file was .xdf, save:")
-        saving_xdf_layout.addWidget(self.label_saving_xdf)
+        # self.label_saving_xdf = QLabel("If the external file was .xdf, save:")
+        # saving_xdf_layout.addWidget(self.label_saving_xdf)
 
-        self.btn_sync_as_set = Button("separately as .SET files", "lightyellow")
-        self.btn_sync_as_set.setEnabled(False)
-        self.btn_sync_as_set.clicked.connect(partial(save_datasets_as_set, self))
-        saving_xdf_layout.addWidget(self.btn_sync_as_set)
+        # self.btn_sync_as_set = Button("separately as .SET files", "lightyellow")
+        # self.btn_sync_as_set.setEnabled(False)
+        # self.btn_sync_as_set.clicked.connect(partial(save_datasets_as_set, self))
+        # saving_xdf_layout.addWidget(self.btn_sync_as_set)
 
-        self.btn_sync_as_fif = Button("separately as .fif files", "lightyellow")
-        self.btn_sync_as_fif.setEnabled(False)
-        self.btn_sync_as_fif.clicked.connect(partial(save_datasets_as_fif, self))
-        saving_xdf_layout.addWidget(self.btn_sync_as_fif)
+        # self.btn_sync_as_fif = Button("separately as .fif files", "lightyellow")
+        # self.btn_sync_as_fif.setEnabled(False)
+        # self.btn_sync_as_fif.clicked.connect(partial(save_datasets_as_fif, self))
+        # saving_xdf_layout.addWidget(self.btn_sync_as_fif)
 
-        self.btn_sync_as_pickle = Button("separately as .pkl files", "lightyellow")
-        self.btn_sync_as_pickle.setEnabled(False)
-        self.btn_sync_as_pickle.clicked.connect(partial(synchronize_datasets_as_pickles, self))
-        saving_xdf_layout.addWidget(self.btn_sync_as_pickle)
+        # self.btn_sync_as_pickle = Button("separately as .pkl files", "lightyellow")
+        # self.btn_sync_as_pickle.setEnabled(False)
+        # self.btn_sync_as_pickle.clicked.connect(partial(synchronize_datasets_as_pickles, self))
+        # saving_xdf_layout.addWidget(self.btn_sync_as_pickle)
 
-        self.btn_all_as_pickle = Button("all as one .pkl", "lightyellow")
-        self.btn_all_as_pickle.setEnabled(False)
-        self.btn_all_as_pickle.clicked.connect(partial(synchronize_datasets_as_one_pickle, self))
-        saving_xdf_layout.addWidget(self.btn_all_as_pickle)
+        # self.btn_all_as_pickle = Button("all as one .pkl", "lightyellow")
+        # self.btn_all_as_pickle.setEnabled(False)
+        # self.btn_all_as_pickle.clicked.connect(partial(synchronize_datasets_as_one_pickle, self))
+        # saving_xdf_layout.addWidget(self.btn_all_as_pickle)
 
-        main_layout.addLayout(saving_xdf_layout)
+        # main_layout.addLayout(saving_xdf_layout)
 
-        # layout for saving from .Poly5 files
-        saving_poly5_layout = QHBoxLayout()
+        # # layout for saving from .Poly5 files
+        # saving_poly5_layout = QHBoxLayout()
 
-        self.label_saving_poly5 = QLabel("If the external file was .Poly5, save:")
-        saving_poly5_layout.addWidget(self.label_saving_poly5)
+        # self.label_saving_poly5 = QLabel("If the external file was .Poly5, save:")
+        # saving_poly5_layout.addWidget(self.label_saving_poly5)
 
-        self.btn_sync_as_mat = Button("separately as .mat files", "lightyellow")
-        self.btn_sync_as_mat.setEnabled(False)
-        self.btn_sync_as_mat.clicked.connect(partial(synchronize_datasets_as_mat, self))
-        saving_poly5_layout.addWidget(self.btn_sync_as_mat)
+        # self.btn_sync_as_mat = Button("separately as .mat files", "lightyellow")
+        # self.btn_sync_as_mat.setEnabled(False)
+        # self.btn_sync_as_mat.clicked.connect(partial(synchronize_datasets_as_mat, self))
+        # saving_poly5_layout.addWidget(self.btn_sync_as_mat)
 
-        self.btn_sync_as_pickle_from_poly5 = Button("separately as .pkl files", "lightyellow")
-        self.btn_sync_as_pickle_from_poly5.setEnabled(False)
-        #self.btn_sync_as_pickle_from_poly5.clicked.connect(self.synchronize_datasets_as_pickles_from_poly5)
-        saving_poly5_layout.addWidget(self.btn_sync_as_pickle_from_poly5)
+        # self.btn_sync_as_pickle_from_poly5 = Button("separately as .pkl files", "lightyellow")
+        # self.btn_sync_as_pickle_from_poly5.setEnabled(False)
+        # #self.btn_sync_as_pickle_from_poly5.clicked.connect(self.synchronize_datasets_as_pickles_from_poly5)
+        # saving_poly5_layout.addWidget(self.btn_sync_as_pickle_from_poly5)
 
-        main_layout.addLayout(saving_poly5_layout)        
+        # main_layout.addLayout(saving_poly5_layout)        
 
 
         # Create the first page widget and set the layout
@@ -756,6 +768,12 @@ class SyncGUI(QMainWindow):
         self.combo_r_peak_threshold.setEnabled(False)  # Should be enabled only when the channel is selected
         layout_r_peak_detect.addWidget(self.combo_r_peak_threshold)
 
+        # Add a button for manual override of parameters if needed
+        self.btn_manual_override = Button("Manual Override", "lightyellow")
+        self.btn_manual_override.clicked.connect(partial(manual_override, self))
+        self.btn_manual_override.setEnabled(False)  # Should be enabled only when the channel is selected
+        layout_r_peak_detect.addWidget(self.btn_manual_override)
+
         layout_methods = QHBoxLayout()
 
         # Insert button for the interpolation method
@@ -1057,13 +1075,13 @@ class SyncGUI(QMainWindow):
         self.btn_choose_int_channel_for_cleaning.setEnabled(True)
         self.btn_choose_ext_channel_for_cleaning.setEnabled(True)
 
-        if self.dataset_extra.file_name.endswith(".xdf"):
-            self.btn_sync_as_set.setEnabled(True)
-            self.btn_sync_as_fif.setEnabled(True)
-            self.btn_sync_as_pickle.setEnabled(True)
-            self.btn_all_as_pickle.setEnabled(True)
-        elif self.dataset_extra.file_name.endswith(".Poly5"):
-            self.btn_sync_as_mat.setEnabled(True)
+        # if self.dataset_extra.file_name.endswith(".xdf"):
+        #     self.btn_sync_as_set.setEnabled(True)
+        #     self.btn_sync_as_fif.setEnabled(True)
+        #     self.btn_sync_as_pickle.setEnabled(True)
+        #     self.btn_all_as_pickle.setEnabled(True)
+        # elif self.dataset_extra.file_name.endswith(".Poly5"):
+        #     self.btn_sync_as_mat.setEnabled(True)
 
 
         #######################################################################
@@ -1118,8 +1136,8 @@ class SyncGUI(QMainWindow):
             self.button_confirm_sync.setEnabled(True)
         else:
             self.button_confirm_sync.setEnabled(False)
-            self.btn_sync_as_set.setEnabled(False)
-            self.btn_sync_as_fif.setEnabled(False)
+            # self.btn_sync_as_set.setEnabled(False)
+            # self.btn_sync_as_fif.setEnabled(False)
             #self.btn_sync_as_pickle.setEnabled(False)
             #self.btn_all_as_pickle.setEnabled(False)
             #self.btn_sync_as_mat.setEnabled(False)

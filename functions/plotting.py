@@ -269,6 +269,7 @@ def plot_overlapped_channels_ecg(self):
     self.canvas_overlapped.draw()
     self.btn_detect_r_peaks.setEnabled(True)
     self.combo_r_peak_threshold.setEnabled(True)
+    self.btn_manual_override.setEnabled(True)
 
 
 def plot_scatter_channel_intra_sf(self):
