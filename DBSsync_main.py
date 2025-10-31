@@ -693,7 +693,7 @@ class SyncGUI(QMainWindow):
         layout_int_channel_selection_cleaning = QHBoxLayout()
         self.btn_choose_int_channel_for_cleaning = Button("Choose intracranial channel to clean", "lightyellow")
         self.btn_choose_int_channel_for_cleaning.clicked.connect(partial(choose_int_channel_for_cleaning, self)) 
-        self.btn_choose_int_channel_for_cleaning.setEnabled(False) # Should be enabled only when the files are synchronized
+        self.btn_choose_int_channel_for_cleaning.setEnabled(False) 
         # add a label to show the selected channel name
         self.label_selected_int_channel = QLabel("No channel selected")
         layout_int_channel_selection_cleaning.addWidget(self.btn_choose_int_channel_for_cleaning)
@@ -967,27 +967,33 @@ class SyncGUI(QMainWindow):
         self.dataset_intra.flag_cleaned = True
         if self.dataset_intra.selected_channel_index_ecg == 0:
             # Replace the corresponding channel's data with the cleaned data
-            self.dataset_intra.synced_data._data[0,:] = self.dataset_intra.cleaned_ecg_left
-            QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the left channel.")
+            if self.config['NoSync'] == True:
+                self.dataset_intra.raw_data._data[0,:] = self.dataset_intra.cleaned_ecg_left
+                QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the left channel.")
+            else:
+                self.dataset_intra.synced_data._data[0,:] = self.dataset_intra.cleaned_ecg_left
+                QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing synced data with cleaned data in the left channel.")
 
-            print("Cleaning confirmed. Replacing raw data with cleaned data in the left channel.")
 
         elif self.dataset_intra.selected_channel_index_ecg == 1:
             # Replace the corresponding channel's data
-            self.dataset_intra.synced_data._data[1,:] = self.dataset_intra.cleaned_ecg_right
-            QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the right channel.")
-            print("Cleaning confirmed. Replacing raw data with cleaned data in the right channel.")
-        
-    def confirm_cleaning_with_ext(self):
-        if self.dataset_intra.selected_channel_index_ecg == 0:
-            # Replace the corresponding channel's data with the cleaned data
-            self.dataset_intra.synced_data._data[0,:] = self.dataset_intra.cleaned_ecg_left
-            QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the left channel.")
+            if self.config['NoSync'] == True:
+                self.dataset_intra.raw_data._data[1,:] = self.dataset_intra.cleaned_ecg_right
+                QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the right channel.")
+            else:
+                self.dataset_intra.synced_data._data[1,:] = self.dataset_intra.cleaned_ecg_right
+                QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing synced data with cleaned data in the right channel.")
 
-        elif self.dataset_intra.selected_channel_index_ecg == 1:   
-            # Replace the corresponding channel's data
-            self.dataset_intra.synced_data._data[1,:] = self.dataset_intra.cleaned_ecg_right
-            QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the right channel.")
+    # def confirm_cleaning_with_ext(self):
+    #     if self.dataset_intra.selected_channel_index_ecg == 0:
+    #         # Replace the corresponding channel's data with the cleaned data
+    #         self.dataset_intra.synced_data._data[0,:] = self.dataset_intra.cleaned_ecg_left
+    #         QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the left channel.")
+
+    #     elif self.dataset_intra.selected_channel_index_ecg == 1:   
+    #         # Replace the corresponding channel's data
+    #         self.dataset_intra.synced_data._data[1,:] = self.dataset_intra.cleaned_ecg_right
+    #         QMessageBox.information(self, "ECG cleaning", "Cleaning confirmed. Replacing raw data with cleaned data in the right channel.")
 
 
 
@@ -1208,7 +1214,10 @@ class SyncGUI(QMainWindow):
             print("Right channel cleaned")
 
         try :
-            timescale = np.linspace(0, self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, self.dataset_intra.synced_data.get_data().shape[1])
+            if self.config['NoSync'] == True:
+                timescale = np.linspace(0, self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, self.dataset_intra.raw_data.get_data().shape[1])
+            else:
+                timescale = np.linspace(0, self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, self.dataset_intra.synced_data.get_data().shape[1])
             # plot an overlap of the raw and cleaned data
             self.canvas_ecg_clean.setEnabled(True)
             self.toolbar_ecg_clean.setEnabled(True)

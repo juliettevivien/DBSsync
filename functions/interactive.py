@@ -329,26 +329,30 @@ def select_last_artifact_extra(self):
 
 def choose_int_channel_for_cleaning(self):
     """Prompt for channel name selection in intracranial file for ecg cleaning."""
-    try:
-        if self.dataset_intra.synced_data:
-            channel_names = self.dataset_intra.ch_names  # List of channel names
-            channel_name, ok = QInputDialog.getItem(
-                self, "Channel Selection", "Select a channel:", channel_names,
-                0, False
-                )
+    # if self.config['NoSync'] == True:
+    #     channel_names = self.dataset_intra.ch_names
 
-            if ok and channel_name:  # Check if a channel was selected
-                self.dataset_intra.selected_channel_name_ecg = channel_name
-                self.dataset_intra.selected_channel_index_ecg = channel_names.index(
-                    channel_name
-                    )  # Get the index of the selected channel
-                self.label_selected_int_channel.setText(
-                    f"Selected Channel: {channel_name}"
-                    )    
-                self.btn_confirm_and_plot_channels.setEnabled(True)    
-                self.box_filtering_option.setEnabled(True)
-                self.btn_validate_filtering.setEnabled(True)
-                    
+    # else:
+    try:
+    # if self.dataset_intra.synced_data:
+        channel_names = self.dataset_intra.ch_names  # List of channel names
+        channel_name, ok = QInputDialog.getItem(
+            self, "Channel Selection", "Select a channel:", channel_names,
+            0, False
+            )
+
+        if ok and channel_name:  # Check if a channel was selected
+            self.dataset_intra.selected_channel_name_ecg = channel_name
+            self.dataset_intra.selected_channel_index_ecg = channel_names.index(
+                channel_name
+                )  # Get the index of the selected channel
+            self.label_selected_int_channel.setText(
+                f"Selected Channel: {channel_name}"
+                )    
+            self.btn_confirm_and_plot_channels.setEnabled(True)    
+            self.box_filtering_option.setEnabled(True)
+            self.btn_validate_filtering.setEnabled(True)
+                
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to select channel: {e}")
 
@@ -381,33 +385,63 @@ def validate_filtering(self):
     based on the user input in the box_filtering_option."""
     try:    
         if self.box_filtering_option.text() != "":
-            # Extract the original channel before you overwrite it
-            raw_new_left = self.dataset_intra.synced_data.copy().pick_channels(
-                [self.dataset_intra.synced_data.ch_names[0]]
-                )
-            raw_new_left.rename_channels(
-                {raw_new_left.ch_names[0]: 'RAW_Left_STN'}
-                )
-            raw_new_right = self.dataset_intra.synced_data.copy().pick_channels(
-                [self.dataset_intra.synced_data.ch_names[1]]
-                )
-            raw_new_right.rename_channels(
-                {raw_new_right.ch_names[0]: 'RAW_Right_STN'}
-                )
+            if self.config['NoSync'] == True:
+                # Extract the original channel before you overwrite it
+                raw_new_left = self.dataset_intra.raw_data.copy().pick_channels(
+                    [self.dataset_intra.raw_data.ch_names[0]]
+                    )
+                raw_new_left.rename_channels(
+                    {raw_new_left.ch_names[0]: 'RAW_Left_STN'}
+                    )
+                raw_new_right = self.dataset_intra.raw_data.copy().pick_channels(
+                    [self.dataset_intra.raw_data.ch_names[1]]
+                    )
+                raw_new_right.rename_channels(
+                    {raw_new_right.ch_names[0]: 'RAW_Right_STN'}
+                    )
 
-            # Add channels to existing Raw object
-            self.dataset_intra.synced_data.add_channels([raw_new_left, raw_new_right])
+                # Add channels to existing Raw object
+                self.dataset_intra.raw_data.add_channels([raw_new_left, raw_new_right])
 
-            h_freq = float(self.box_filtering_option.text())
-            self.dataset_intra.synced_data.filter(
-                l_freq=None, h_freq=h_freq, picks=[
-                    self.dataset_intra.synced_data.ch_names[
-                        0], self.dataset_intra.synced_data.ch_names[1]
-                        ])
-            QMessageBox.information(
-                self, "Filtering", 
-                f"Filtering applied to both left and right channels with cutoff frequency: {h_freq} Hz"
-                )
+                h_freq = float(self.box_filtering_option.text())
+                self.dataset_intra.raw_data.filter(
+                    l_freq=None, h_freq=h_freq, picks=[
+                        self.dataset_intra.raw_data.ch_names[
+                            0], self.dataset_intra.raw_data.ch_names[1]
+                            ])
+                QMessageBox.information(
+                    self, "Filtering", 
+                    f"Filtering applied to both left and right channels with cutoff frequency: {h_freq} Hz"
+                    )
+                
+            else:
+                # Extract the original channel before you overwrite it
+                raw_new_left = self.dataset_intra.synced_data.copy().pick_channels(
+                    [self.dataset_intra.synced_data.ch_names[0]]
+                    )
+                raw_new_left.rename_channels(
+                    {raw_new_left.ch_names[0]: 'RAW_Left_STN'}
+                    )
+                raw_new_right = self.dataset_intra.synced_data.copy().pick_channels(
+                    [self.dataset_intra.synced_data.ch_names[1]]
+                    )
+                raw_new_right.rename_channels(
+                    {raw_new_right.ch_names[0]: 'RAW_Right_STN'}
+                    )
+
+                # Add channels to existing Raw object
+                self.dataset_intra.synced_data.add_channels([raw_new_left, raw_new_right])
+
+                h_freq = float(self.box_filtering_option.text())
+                self.dataset_intra.synced_data.filter(
+                    l_freq=None, h_freq=h_freq, picks=[
+                        self.dataset_intra.synced_data.ch_names[
+                            0], self.dataset_intra.synced_data.ch_names[1]
+                            ])
+                QMessageBox.information(
+                    self, "Filtering", 
+                    f"Filtering applied to both left and right channels with cutoff frequency: {h_freq} Hz"
+                    )
 
     except ValueError as e:
         QMessageBox.warning(self, "Invalid Input, please enter an integer", str(e))

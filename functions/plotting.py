@@ -252,24 +252,44 @@ def plot_overlapped_channels_ecg(self):
              label='External ECG channel'
              )
         
-    # Plot the intracranial channel synchronized
-    data_intra = self.dataset_intra.synced_data.get_data()[
+    # Plot the intracranial channel 
+    if self.config['NoSync'] == True:
+        data_intra = self.dataset_intra.raw_data.get_data()[
          self.dataset_intra.selected_channel_index_ecg
          ]
-    timescale_intra = np.linspace(
-         0, 
-         self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
-         self.dataset_intra.synced_data.get_data().shape[1]
-         )
-    self.ax_overlapped.plot(
-         timescale_intra, data_intra, color='#6495ED', 
-         label='Intracranial channel to clean'
-         )
-    self.ax_overlapped.legend(loc='upper left')
-    self.canvas_overlapped.draw()
-    self.btn_detect_r_peaks.setEnabled(True)
-    self.combo_r_peak_threshold.setEnabled(True)
-    self.btn_manual_override.setEnabled(True)
+        timescale_intra = np.linspace(
+            0, 
+            self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.raw_data.get_data().shape[1]
+            )
+        self.ax_overlapped.plot(
+            timescale_intra, data_intra, color='#6495ED', 
+            label='Intracranial channel to clean'
+            )
+        self.ax_overlapped.legend(loc='upper left')
+        self.canvas_overlapped.draw()
+        self.btn_detect_r_peaks.setEnabled(True)
+        self.combo_r_peak_threshold.setEnabled(True)
+        self.btn_manual_override.setEnabled(True)
+
+    else:
+        data_intra = self.dataset_intra.synced_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
+        timescale_intra = np.linspace(
+            0, 
+            self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.synced_data.get_data().shape[1]
+            )
+        self.ax_overlapped.plot(
+            timescale_intra, data_intra, color='#6495ED', 
+            label='Intracranial channel to clean'
+            )
+        self.ax_overlapped.legend(loc='upper left')
+        self.canvas_overlapped.draw()
+        self.btn_detect_r_peaks.setEnabled(True)
+        self.combo_r_peak_threshold.setEnabled(True)
+        self.btn_manual_override.setEnabled(True)
 
 
 def plot_scatter_channel_intra_sf(self):

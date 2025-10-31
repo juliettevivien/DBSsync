@@ -60,7 +60,8 @@ def load_int_file(self):
 
     # elif file_name.endswith(".json"):
     #     load_json_file(self, file_name)
-
+    if self.config['NoSync'] == True:
+        self.btn_choose_int_channel_for_cleaning.setEnabled(True)
 
 def load_mat_file(self, file_name):
     """Load .mat file."""
@@ -331,45 +332,200 @@ def select_saving_folder(self):
 
 
 def save_datasets(self):
-    # Check dataformat of external recording
-    ext_extension = self.dataset_extra.file_name.split('.')[-1]
-
-    # Determine saving format from config
-    saving_format_external = self.config["SavingFormatExternal"]
     saving_format_internal = self.config["SavingFormatInternal"]
-    saving_format_all_as_one = self.config["SavingFormatAllAsOne"]
-    saving_all_as_one = self.config["SavingAllAsOne"]
 
-    if ext_extension == "xdf":
-        if saving_all_as_one:
-            if saving_format_all_as_one == ".pkl":
-                synchronize_datasets_as_one_pickle(self)
-            else:
-                QMessageBox.warning(
-                    self, "Saving Format Error", 
-                    f"Unsupported saving format for all-in-one: {saving_format_all_as_one} \nOnly .pkl is supported."
-                    )
-        else:
-            if saving_format_external == ".set" and saving_format_internal == ".set":
-                save_datasets_as_set(self)
-            elif saving_format_external == ".fif" and saving_format_internal == ".fif":
-                save_datasets_as_fif(self)  
-            elif saving_format_external == ".pkl" and saving_format_internal == ".pkl":
-                synchronize_datasets_as_pickles(self)
-            else:
-                QMessageBox.warning(
-                    self, "Saving Format Error", 
-                    f"Unsupported saving formats: External {saving_format_external}, Internal {saving_format_internal}"
-                    )   
+    if self.config['NoSync'] == True:
+        print('true')
+        if saving_format_internal == ".set":
+            save_int_as_set(self)
+        elif saving_format_internal == ".fif":
+            save_int_as_fif(self)
+        elif saving_format_internal == ".pkl":
+            save_int_as_pickle(self)
+        elif saving_format_internal == ".mat":
+            save_int_as_mat(self)
     else:
-        if saving_format_external == ".mat" and saving_format_internal == ".mat":
-                synchronize_datasets_as_mat(self)
-        else:
-            QMessageBox.warning(
-                self, "Saving Format Error", 
-                f"Unsupported saving formats for external file type {ext_extension}: External {saving_format_external}, Internal {saving_format_internal} \nOnly .mat is supported for non-xdf external files."
-                )
+        # Check dataformat of external recording
+        ext_extension = self.dataset_extra.file_name.split('.')[-1]
 
+        # Determine saving format from config
+        saving_format_external = self.config["SavingFormatExternal"]
+        saving_format_all_as_one = self.config["SavingFormatAllAsOne"]
+        saving_all_as_one = self.config["SavingAllAsOne"]
+
+        if ext_extension == "xdf":
+            if saving_all_as_one:
+                if saving_format_all_as_one == ".pkl":
+                    synchronize_datasets_as_one_pickle(self)
+                else:
+                    QMessageBox.warning(
+                        self, "Saving Format Error", 
+                        f"Unsupported saving format for all-in-one: {saving_format_all_as_one} \nOnly .pkl is supported."
+                        )
+            else:
+                if saving_format_external == ".set" and saving_format_internal == ".set":
+                    save_datasets_as_set(self)
+                elif saving_format_external == ".fif" and saving_format_internal == ".fif":
+                    save_datasets_as_fif(self)  
+                elif saving_format_external == ".pkl" and saving_format_internal == ".pkl":
+                    synchronize_datasets_as_pickles(self)
+                else:
+                    QMessageBox.warning(
+                        self, "Saving Format Error", 
+                        f"Unsupported saving formats: External {saving_format_external}, Internal {saving_format_internal}"
+                        )   
+        else:
+            if saving_format_external == ".mat" and saving_format_internal == ".mat":
+                    synchronize_datasets_as_mat(self)
+            else:
+                QMessageBox.warning(
+                    self, "Saving Format Error", 
+                    f"Unsupported saving formats for external file type {ext_extension}: External {saving_format_external}, Internal {saving_format_internal} \nOnly .mat is supported for non-xdf external files."
+                    )
+
+
+
+def save_int_as_set(self):
+    if self.dataset_intra.flag_cleaned == True:
+        lfp_title = (
+            "INTRACRANIAL_CLEANED_" + str(self.dataset_intra.file_name[:-4]) + ".set"
+            )
+    else:
+        lfp_title = (
+            "INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".set"
+            )
+
+    if self.folder_path is not None:
+        fname_lfp_out =join(self.folder_path, lfp_title)
+    else:
+        fname_lfp_out = lfp_title
+    
+    lfp_timescale = np.linspace(
+        0, self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+        self.dataset_intra.raw_data.get_data().shape[1]
+        )
+    
+    write_set(
+        fname = fname_lfp_out, 
+        raw = self.dataset_intra.raw_data, 
+        fs = self.dataset_intra.sf,
+        times = lfp_timescale
+        )
+
+    QMessageBox.information(
+        self, "Saving",
+        "Saving done. Intracranial file saved as .SET"
+        )
+
+
+def save_int_as_fif(self):
+    if self.dataset_intra.flag_cleaned == True:
+        lfp_title = (
+            "INTRACRANIAL_CLEANED_" + str(self.dataset_intra.file_name[:-4]) + "_raw.fif"
+            )
+    else:
+        lfp_title = (
+            "INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + "_raw.fif"
+            )
+
+    if self.folder_path is not None:
+        fname_lfp_out =join(self.folder_path, lfp_title)
+    else:
+        fname_lfp_out = lfp_title
+
+    # lfp_timescale = np.linspace(
+    #     0, self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+    #     self.dataset_intra.raw_data.get_data().shape[1]
+    #     )
+    
+    data_lfp = self.dataset_intra.raw_data.get_data()
+    ch_names = self.dataset_intra.raw_data.info['ch_names']
+
+    # Create a new Info object with the correct sampling frequency
+    info = mne.create_info(
+        ch_names=ch_names,
+        sfreq=self.dataset_intra.sf,
+        ch_types='eeg'
+    )
+
+    # Create a new Raw object using the corrected info
+    lfp_rec = mne.io.RawArray(data_lfp, info)
+
+    # Save the corrected Raw
+    lfp_rec.save(fname_lfp_out, overwrite=True)
+
+
+    QMessageBox.information(
+        self, "Saving",
+        "Saving done. Intracranial file saved as .fif"
+        )
+
+
+def save_int_as_pickle(self):
+    if self.dataset_intra.flag_cleaned == True:
+        lfp_title = (
+            "INTRACRANIAL_CLEANED_" + str(self.dataset_intra.file_name[:-4]) + ".pkl"
+            )
+    else:
+        lfp_title = (
+            "INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".pkl"
+            )
+    
+    LFP_array = self.dataset_intra.raw_data.get_data()
+    LFP_df = pd.DataFrame(LFP_array.T)
+    LFP_df.columns = self.dataset_intra.ch_names
+    LFP_timescale = self.dataset_intra.times
+
+    # Save as pickle file:
+    LFP_df["sf_LFP"] = self.dataset_intra.sf
+    LFP_df["time_stamp"] = LFP_timescale
+
+    if self.folder_path is not None:
+        LFP_filename = join(self.folder_path, lfp_title)
+    else: LFP_filename = lfp_title
+    # Save the dataset to a pickle file
+    with open(LFP_filename, "wb") as file:
+        pickle.dump(LFP_df, file)
+    
+    QMessageBox.information(
+        self, "Saving", 
+        "Saving done. Intracranial file saved as .pkl"
+        )
+
+
+def save_int_as_mat(self):
+    if self.dataset_intra.flag_cleaned == True:
+        lfp_title = (
+            "INTRACRANIAL_CLEANED_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
+            )
+    else:
+        lfp_title = (
+            "INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
+            )
+        
+    if self.folder_path is not None:
+        LFP_filename = join(self.folder_path, lfp_title)
+    else:
+        LFP_filename = lfp_title
+
+    LFP_array = self.dataset_intra.raw_data.get_data()
+    LFP_df = pd.DataFrame(LFP_array.T)
+    LFP_df.columns = self.dataset_intra.ch_names
+
+    savemat(
+        LFP_filename,
+        {
+            "data": LFP_df.T,
+            "fsample": self.dataset_intra.sf,
+            "label": np.array(
+                LFP_df.columns.tolist(), dtype=object
+            ).reshape(-1, 1),
+        },
+    )    
+    QMessageBox.information(
+        self, "Saving", 
+        "Saving done. Intracranial file saved as .mat"
+        )
 
 def save_datasets_as_set(self):
     """
@@ -453,18 +609,18 @@ def save_datasets_as_set(self):
         )
     
     write_set(
-        fname_external_out, 
-        TMSi_rec_offset, 
-        TMSi_rec_offset_annotations_onset,
-        TMSi_rec_offset.info['sfreq'],
-        TMSi_rec_offset.times
+        fname = fname_external_out, 
+        raw = TMSi_rec_offset, 
+        fs = TMSi_rec_offset.info['sfreq'],
+        times = TMSi_rec_offset.times,
+        annotations_onset = TMSi_rec_offset_annotations_onset
         )
     write_set(
-        fname_lfp_out, 
-        lfp_rec_offset, 
-        lfp_rec_offset_annotations_onset,
-        lfp_sf,
-        lfp_timescale
+        fname = fname_lfp_out, 
+        raw = lfp_rec_offset, 
+        fs = lfp_sf,
+        times = lfp_timescale,
+        annotations_onset = lfp_rec_offset_annotations_onset
         )
 
     QMessageBox.information(
@@ -832,34 +988,94 @@ def synchronize_datasets_as_mat(self):
 
 
 def write_set(
-        fname: str, 
-        raw: mne.io.BaseRaw, 
-        annotations_onset: float, 
-        fs: float, 
-        times: np.ndarray
-        ):
-    """Export synchronized recordings to EEGLAB .set files."""
+    fname: str,
+    raw: mne.io.BaseRaw,
+    fs: float,
+    times: np.ndarray,
+    annotations_onset: float | None = None,
+):
+    """
+    Export synchronized recordings to EEGLAB .set files.
+
+    Parameters
+    ----------
+    fname : str
+        Output filename (without .mat extension).
+    raw : mne.io.BaseRaw
+        MNE Raw object containing data and annotations.
+    fs : float
+        Sampling frequency.
+    times : np.ndarray
+        Time vector corresponding to samples.
+    annotations_onset : float | None, optional
+        Global onset time of annotations (in seconds). If None, events will be omitted.
+    """
     data = raw.get_data()
     ch_names = raw.info["ch_names"]
     chanlocs = fromarrays([ch_names], names=["labels"])
-    events = fromarrays([raw.annotations.description,
-                         annotations_onset * fs + 1,
-                         raw.annotations.duration * fs],
-                        names=["type", "latency", "duration"])
-    savemat(fname, dict(EEG=dict(data=data,
-                                 setname=fname,
-                                 nbchan=data.shape[0],
-                                 pnts=data.shape[1],
-                                 trials=1,
-                                 srate=fs,
-                                 xmin=times[0],
-                                 xmax=times[-1],
-                                 chanlocs=chanlocs,
-                                 event=events,
-                                 icawinv=[],
-                                 icasphere=[],
-                                 icaweights=[])),
-            appendmat=False)
+
+    # --- Handle events safely ---
+    if hasattr(raw, "annotations") and len(raw.annotations) > 0:
+        if annotations_onset is None:
+            annotations_onset = 0.0  # default if missing
+        events = fromarrays([
+            raw.annotations.description,
+            annotations_onset * fs + 1,
+            raw.annotations.duration * fs
+        ], names=["type", "latency", "duration"])
+    else:
+        # Create empty structured array if no annotations
+        events = fromarrays([[], [], []], names=["type", "latency", "duration"])
+
+    # --- Prepare EEGLAB structure ---
+    EEG = dict(
+        data=data,
+        setname=fname,
+        nbchan=data.shape[0],
+        pnts=data.shape[1],
+        trials=1,
+        srate=fs,
+        xmin=times[0],
+        xmax=times[-1],
+        chanlocs=chanlocs,
+        event=events,
+        icawinv=[],
+        icasphere=[],
+        icaweights=[],
+    )
+
+    # --- Save .set file ---
+    savemat(fname, {"EEG": EEG}, appendmat=False)
+
+# def write_set(
+#         fname: str, 
+#         raw: mne.io.BaseRaw, 
+#         annotations_onset: float, 
+#         fs: float, 
+#         times: np.ndarray
+#         ):
+#     """Export synchronized recordings to EEGLAB .set files."""
+#     data = raw.get_data()
+#     ch_names = raw.info["ch_names"]
+#     chanlocs = fromarrays([ch_names], names=["labels"])
+#     events = fromarrays([raw.annotations.description,
+#                          annotations_onset * fs + 1,
+#                          raw.annotations.duration * fs],
+#                         names=["type", "latency", "duration"])
+#     savemat(fname, dict(EEG=dict(data=data,
+#                                  setname=fname,
+#                                  nbchan=data.shape[0],
+#                                  pnts=data.shape[1],
+#                                  trials=1,
+#                                  srate=fs,
+#                                  xmin=times[0],
+#                                  xmax=times[-1],
+#                                  chanlocs=chanlocs,
+#                                  event=events,
+#                                  icawinv=[],
+#                                  icasphere=[],
+#                                  icaweights=[])),
+#             appendmat=False)
 
 
 def save_datasets_as_fif(self):

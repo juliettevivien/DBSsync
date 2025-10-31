@@ -144,14 +144,24 @@ def find_r_peaks(self):
     This function will be called when the user clicks the "Find R-peaks" button.
     """
 
-    full_data = self.dataset_intra.synced_data.get_data()[
-        self.dataset_intra.selected_channel_index_ecg
-        ]
-    times = np.linspace(
-        0, 
-        self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
-        self.dataset_intra.synced_data.get_data().shape[1]
-        )
+    if self.config['NoSync'] == True:
+        full_data = self.dataset_intra.raw_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
+        times = np.linspace(
+            0, 
+            self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.raw_data.get_data().shape[1]
+            )
+    else:    
+        full_data = self.dataset_intra.synced_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
+        times = np.linspace(
+            0, 
+            self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.synced_data.get_data().shape[1]
+            )
     # use the detection threshold set by the user, or 95 as default:
     detection_threshold = int(self.combo_r_peak_threshold.currentText() or 95)
 
@@ -835,14 +845,24 @@ def start_ecg_cleaning_interpolation(self):
 
 
 def clean_ecg_interpolation(self):
-    full_data = self.dataset_intra.synced_data.get_data()[
-        self.dataset_intra.selected_channel_index_ecg
-        ]
-    times = np.linspace(
-        0, 
-        self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
-        self.dataset_intra.synced_data.get_data().shape[1]
-        )
+    if self.config['NoSync'] == True:
+        full_data = self.dataset_intra.raw_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
+        times = np.linspace(
+            0, 
+            self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.raw_data.get_data().shape[1]
+            )        
+    else:
+        full_data = self.dataset_intra.synced_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
+        times = np.linspace(
+            0, 
+            self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.synced_data.get_data().shape[1]
+            )
 
     ############################################################################
     # prepare a copy of the full data to store the cleaned data
@@ -927,14 +947,24 @@ def start_ecg_cleaning_template_sub(self):
 
 
 def clean_ecg_template_sub(self):
-    full_data = self.dataset_intra.synced_data.get_data()[
+    if self.config['NoSync'] == True:
+        full_data = self.dataset_intra.raw_data.get_data()[
         self.dataset_intra.selected_channel_index_ecg
         ]
-    times = np.linspace(
-        0, 
-        self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
-        self.dataset_intra.synced_data.get_data().shape[1]
-        )
+        times = np.linspace(
+            0, 
+            self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.raw_data.get_data().shape[1]
+            )        
+    else:
+        full_data = self.dataset_intra.synced_data.get_data()[
+        self.dataset_intra.selected_channel_index_ecg
+        ]
+        times = np.linspace(
+            0, 
+            self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
+            self.dataset_intra.synced_data.get_data().shape[1]
+            )
     window = [-0.2, 0.2] # QRS complex window
 
     ############################################################################
@@ -1085,12 +1115,17 @@ def clean_ecg_svd(self):
     The function opens a secondary plotting window to visualize the SVD results,
     so that the user can choose which components to keep to reconstruct the signal.
     """
-    self.full_data = self.dataset_intra.synced_data.get_data()[
+    if self.config['NoSync'] == True:
+        self.full_data = self.dataset_intra.raw_data.get_data()[
         self.dataset_intra.selected_channel_index_ecg
-        ]
+        ]        
+    else:
+        self.full_data = self.dataset_intra.synced_data.get_data()[
+            self.dataset_intra.selected_channel_index_ecg
+            ]
     self.window = [-0.2, 0.2] # add an option to choose QRS or PQRST window??
 
-    # Create a QRS template #
+    # Create a QRS template
     pre_samples = int(abs(self.window[0]) * self.dataset_intra.sf)
     post_samples = int(self.window[1] * self.dataset_intra.sf)
     self.epoch_length = pre_samples + post_samples  # Total length of each epoch

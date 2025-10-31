@@ -2,5 +2,6 @@
     "SavingFormatExternal": ".set",
     "SavingFormatInternal": ".set",
     "SavingAllAsOne": false,
-    "SavingFormatAllAsOne": ".pkl"
+    "SavingFormatAllAsOne": ".pkl",
+    "NoSync": true
 }
