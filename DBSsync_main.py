@@ -83,7 +83,7 @@ class SyncGUI(QMainWindow):
         self.end_cleaning_time = None  # initialize as None to allow for potential user override
 
         # Set up the main window
-        self.setWindowTitle("ReSync GUI")
+        self.setWindowTitle("DBSsync GUI")
         self.setWindowIcon(QIcon("logo_resized.png"))
         self.setGeometry(100, 100, 1000, 600)
 

@@ -165,35 +165,6 @@ def find_r_peaks(self):
     # use the detection threshold set by the user, or 95 as default:
     detection_threshold = int(self.combo_r_peak_threshold.currentText() or 95)
 
-    # # Get additional option to override some parameters if needed:
-    # # open a pop-up window to get user input for polarity and time range
-    # dialog = QDialog(self)
-    # dialog.setWindowTitle("Override Parameters")
-    # dialog.setGeometry(100, 100, 300, 200)
-
-    # # Create layout and widgets for the dialog
-    # layout = QVBoxLayout(dialog)    
-    # label_info = QLabel("You can override the default parameters for R-peak detection below.\n"
-    #                     "Leave fields empty to use default values.", dialog)
-    # layout.addWidget(label_info)
-    # label_polarity = QLabel("R-peak Polarity in LFP Channel (Up/Down):", dialog)
-    # layout.addWidget(label_polarity)
-    # combo_polarity = QComboBox(dialog)
-    # combo_polarity.addItems(["Up", "Down"])
-    # layout.addWidget(combo_polarity)
-    # label_start_time = QLabel("Start Time for Cleaning (seconds):", dialog)
-    # layout.addWidget(label_start_time)
-    # input_start_time = QLineEdit(dialog)
-    # layout.addWidget(input_start_time)
-    # label_end_time = QLabel("End Time for Cleaning (seconds):", dialog)
-    # layout.addWidget(label_end_time)
-    # input_end_time = QLineEdit(dialog)
-    # layout.addWidget(input_end_time)
-
-    # r_peak_polarity_lfp = str(combo_polarity.currentText()) or None
-    # start_cleaning_time = float(input_start_time.text()) or None
-    # end_cleaning_time = float(input_end_time.text()) or None
-
 
     if self.dataset_extra.selected_channel_name_ecg is not None:
         # Use external ECG channel to find R-peaks
@@ -295,10 +266,10 @@ def find_r_peaks_based_on_ext_ecg(
     # Apply 0.1 Hz-100Hz band-pass filter to ECG data
     b, a = scipy.signal.butter(1, 0.05, "highpass")
     detrended_data = scipy.signal.filtfilt(b, a, data_extra)
-    low_cutoff = 60.0  # Hz
+
     b2, a2 = scipy.signal.butter(
         N=4,  # Filter order
-        Wn=low_cutoff,
+        Wn=self.config["EcgLowpassFilter"],
         btype="lowpass",
         fs=self.dataset_extra.sf 
     )
@@ -575,34 +546,41 @@ def find_r_peaks_in_lfp_channel(
         ):
     sf_lfp = round(self.dataset_intra.sf)
 
-    last_peak_start, first_peak_end = get_start_end_times(full_data, times)
-    
-    # Override with user-defined times if provided
-    if self.start_cleaning_time is not None:
-        last_peak_start = self.start_cleaning_time
-    if self.end_cleaning_time is not None:
-        first_peak_end = self.end_cleaning_time
-    # print(f"Debug: Data length: {len(full_data)}, Sampling frequency: {sf_lfp}")
-    # print(f"Debug: Time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
-    # print(f"Debug: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
-    
-    # Validate crop range
-    if last_peak_start >= first_peak_end:
-        print(f"Warning: Invalid crop range detected! Start ({last_peak_start:.2f}) >= End ({first_peak_end:.2f})")
-        print("Using full signal instead of cropping...")
-        # Use a reasonable portion of the signal (skip first and last 10 seconds)
-        last_peak_start = max(10.0, times[0] + 10.0)
-        first_peak_end = min(times[-1] - 10.0, times[-1] - 10.0)
-        print(f"Debug: Adjusted crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
-    
-    # Calculate crop indices and validate
-    start_idx = int(last_peak_start * sf_lfp)
-    end_idx = int(first_peak_end * sf_lfp)
-    
-    # Ensure indices are within bounds
-    start_idx = max(0, min(start_idx, len(full_data) - 1))
-    end_idx = max(start_idx + 1, min(end_idx, len(full_data)))
-    
+
+
+    if self.config['NoSync'] == True:
+        print("NoSync mode: Using full data without cropping.")
+        start_idx = 0
+        end_idx = len(full_data)
+    else:
+        last_peak_start, first_peak_end = get_start_end_times(full_data, times)
+        
+        # Override with user-defined times if provided
+        if self.start_cleaning_time is not None:
+            last_peak_start = self.start_cleaning_time
+        if self.end_cleaning_time is not None:
+            first_peak_end = self.end_cleaning_time
+        # print(f"Debug: Data length: {len(full_data)}, Sampling frequency: {sf_lfp}")
+        # print(f"Debug: Time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
+        # print(f"Debug: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
+        
+        # Validate crop range
+        if last_peak_start >= first_peak_end:
+            print(f"Warning: Invalid crop range detected! Start ({last_peak_start:.2f}) >= End ({first_peak_end:.2f})")
+            print("Using full signal instead of cropping...")
+            # Use a reasonable portion of the signal (skip first and last 10 seconds)
+            last_peak_start = max(10.0, times[0] + 10.0)
+            first_peak_end = min(times[-1] - 10.0, times[-1] - 10.0)
+            # print(f"Debug: Adjusted crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
+        
+        # Calculate crop indices and validate
+        start_idx = int(last_peak_start * sf_lfp)
+        end_idx = int(first_peak_end * sf_lfp)
+        
+        # Ensure indices are within bounds
+        start_idx = max(0, min(start_idx, len(full_data) - 1))
+        end_idx = max(start_idx + 1, min(end_idx, len(full_data)))
+
     cropped_data = full_data[start_idx:end_idx]
     
     # Check if cropped data is valid

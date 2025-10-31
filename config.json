@@ -1,7 +1,21 @@
 {
+    "COMMENTS_FOR_USERS": {
+        "SavingFormatExternal": "Options are: .set, .fif, .pkl",
+        "SavingFormatInternal": "Options are: .set, .fif, .pkl, .mat",
+        "SavingAllAsOne": "Options are: true or false",
+        "SavingFormatAllAsOne": "Options are: .pkl",
+
+        "NoSync": "Options are: true (only ecg cleaning is needed) or false (synchronization is needed).",
+
+        "EcgLowpassFilter": "Options are: float value in Hz (e.g. 60.0)"
+    },
+
     "SavingFormatExternal": ".set",
     "SavingFormatInternal": ".set",
     "SavingAllAsOne": false,
     "SavingFormatAllAsOne": ".pkl",
-    "NoSync": true
+
+    "NoSync": true,
+
+    "EcgLowpassFilter": 60.0
 }
