@@ -45,11 +45,28 @@ from pyxdftools.xdfdata import XdfData
 ##############################  INPUT FUNCTIONS  ###############################
 
 #### LFP DATASET ####
-def load_mat_file(self):
-    """Load .mat file."""
+def load_int_file(self):
+    """Load intracranial file. Supported file formats are .mat, .fif"""
     file_name, _ = QFileDialog.getOpenFileName(
-        self, "Select MAT File", "", "MAT Files (*.mat);;All Files (*)"
+        self, "Select Intracranial File", "", 
+        "MAT Files (*.mat);;FIF Files (*.fif);;JSON Files (*.json)"
         )
+    
+    if file_name.endswith(".mat"):
+        load_mat_file(self, file_name)
+    
+    elif file_name.endswith(".fif"):
+        load_fif_file_int(self, file_name)
+
+    # elif file_name.endswith(".json"):
+    #     load_json_file(self, file_name)
+
+
+def load_mat_file(self, file_name):
+    """Load .mat file."""
+    # file_name, _ = QFileDialog.getOpenFileName(
+    #     self, "Select MAT File", "", "MAT Files (*.mat);;All Files (*)"
+    #     )
     
     if file_name:
         try:
@@ -84,9 +101,9 @@ def load_fif_file_int(
         file_name: str,
         ):
     """Load .fif file."""
-    file_name, _ = QFileDialog.getOpenFileName(
-    self, "Select FIF File", "", "FIF Files (*.fif);;All Files (*)"
-    )
+    # file_name, _ = QFileDialog.getOpenFileName(
+    # self, "Select FIF File", "", "FIF Files (*.fif);;All Files (*)"
+    # )
     try:
         raw_data = mne.io.read_raw_fif(file_name, preload=True)
 
@@ -94,11 +111,6 @@ def load_fif_file_int(
         self.dataset_intra.sf = raw_data.info["sfreq"]
         self.dataset_intra.ch_names = raw_data.ch_names
         self.dataset_intra.times = raw_data.times
-
-        # Enable channel selection and plot buttons
-        # self.channel_label_xdf.setEnabled(True)
-        # self.btn_select_channel_xdf.setEnabled(True)
-        # self.btn_select_ecg_channel.setEnabled(True)
 
         self.file_label_intra.setText(
             f"Selected File: {basename(file_name)}"
@@ -114,11 +126,46 @@ def load_fif_file_int(
         QMessageBox.critical(self, "Error", f"Failed to load .fif file: {e}")
 
 
+def load_json_file(self, file_name: str):
+    try:
+        # Load the .json file and extract streams information
+        # here write the logic to read json files, and create the dataframe
+        # to show users all the different streams so that they can pick the one
+        # they are interested in. Put all this in a separate function (dataframe creation)
+        
+
+
+
+
+        # raw_data = read_raw_fieldtrip(
+        #     file_name, info={}, data_name="data"
+        #     )
+        # self.dataset_intra.raw_data = raw_data  # Assign to dataset
+        # self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
+        # self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
+        # self.dataset_intra.times = np.linspace(
+        #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+        #     raw_data.get_data().shape[1]
+        #     )
+        self.file_label_intra.setText(
+            f"Selected File: {basename(file_name)}"
+            )
+        self.dataset_intra.file_name = basename(file_name)
+        self.dataset_intra.file_path = dirname(file_name)
+
+        # Show channel selection and plot buttons for intracranial
+        self.btn_select_channel_intra.setEnabled(True)
+        self.channel_label_intra.setEnabled(True)
+
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"Failed to load .json file: {e}")
+
+
 def load_ext_file(self):
-    """Load external file. Supported file formats are .xdf, .poly5"""
+    """Load external file. Supported file formats are .xdf, .fif, .poly5"""
     file_name, _ = QFileDialog.getOpenFileName(
         self, "Select External File", "", 
-        "All Files (*);;XDF Files (*.xdf);;Poly5 Files (*.Poly5)"
+        "XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5)"
         )
     self.file_label_xdf.setText(f"Selected File: {basename(file_name)}")
     self.dataset_extra.file_name = basename(file_name)

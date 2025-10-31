@@ -18,8 +18,7 @@ from functools import partial
 
 from functions.io import (
     select_saving_folder,
-    load_mat_file,
-    load_fif_file_int,
+    load_int_file,
     load_ext_file,
     save_datasets_as_set,
     save_datasets_as_fif,
@@ -268,8 +267,8 @@ class SyncGUI(QMainWindow):
         layout = QVBoxLayout()
 
         # File selection button for intracranial
-        self.btn_load_file_intra = Button("Load intracranial file (supported format: .fif)", "lightblue")
-        self.btn_load_file_intra.clicked.connect(partial(load_fif_file_int, self))
+        self.btn_load_file_intra = Button("Load intracranial file (supported format: .mat, .fif, .json)", "lightblue")
+        self.btn_load_file_intra.clicked.connect(partial(load_int_file, self))
         layout.addWidget(self.btn_load_file_intra)
 
         # Create a label to display the selected file name
@@ -363,7 +362,7 @@ class SyncGUI(QMainWindow):
         layout = QVBoxLayout()
 
         # File selection button for .xdf
-        self.btn_load_file_xdf = Button("Load external file (supported formats: .xdf)", "lightgreen")
+        self.btn_load_file_xdf = Button("Load external file (supported formats: .xdf, .fif, .poly5)", "lightgreen")
         self.btn_load_file_xdf.clicked.connect(partial(load_ext_file, self))
         layout.addWidget(self.btn_load_file_xdf)       
 
