@@ -44,7 +44,7 @@ This module contains the following functions:
     #                         ECG CLEANING FUNCTIONS                      #
     #######################################################################
 
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit, QComboBox, QHBoxLayout, QPushButton
 import numpy as np
 import scipy
 import scipy.signal
@@ -65,6 +65,83 @@ def find_r_peaks(self):
     or an additional external ECG channel synchronized with the LFP channel.
     This function will be called when the user clicks the "Find R-peaks" button.
     """
+    # --- Create dialog ---
+    dialog = QDialog()
+    dialog.setWindowTitle("Set R-peak Detection Parameters")
+
+    layout = QVBoxLayout()
+
+    # --- Combo box for polarity ---
+    polarity_layout = QHBoxLayout()
+    polarity_label = QLabel("R-peak polarity (LFP):")
+    combo_polarity = QComboBox()
+    combo_polarity.addItems(["None", "Down", "Up"])
+    combo_polarity.setCurrentText("None")
+    polarity_layout.addWidget(polarity_label)
+    polarity_layout.addWidget(combo_polarity)
+    layout.addLayout(polarity_layout)
+
+    # --- Line edits for start/end cleaning times ---
+    start_layout = QHBoxLayout()
+    start_label = QLabel("Start cleaning time (s):")
+    start_edit = QLineEdit()
+    start_edit.setPlaceholderText("None")
+    start_layout.addWidget(start_label)
+    start_layout.addWidget(start_edit)
+    layout.addLayout(start_layout)
+
+    end_layout = QHBoxLayout()
+    end_label = QLabel("End cleaning time (s):")
+    end_edit = QLineEdit()
+    end_edit.setPlaceholderText("None")
+    end_layout.addWidget(end_label)
+    end_layout.addWidget(end_edit)
+    layout.addLayout(end_layout)
+
+    # --- OK / Cancel buttons ---
+    button_layout = QHBoxLayout()
+    ok_button = QPushButton("OK")
+    cancel_button = QPushButton("Cancel")
+    button_layout.addWidget(ok_button)
+    button_layout.addWidget(cancel_button)
+    layout.addLayout(button_layout)
+
+    dialog.setLayout(layout)
+
+    # --- Button connections ---
+    def on_ok():
+        try:
+            r_peak_polarity_lfp = combo_polarity.currentText()
+            if r_peak_polarity_lfp == "None":
+                r_peak_polarity_lfp = None
+
+            start_text = start_edit.text().strip()
+            start_cleaning_time = float(start_text) if start_text else None
+
+            end_text = end_edit.text().strip()
+            end_cleaning_time = float(end_text) if end_text else None
+
+            # store as instance attributes or process immediately
+            self.r_peak_polarity_lfp = r_peak_polarity_lfp
+            self.start_cleaning_time = start_cleaning_time
+            self.end_cleaning_time = end_cleaning_time
+
+            dialog.accept()
+        except ValueError:
+            QMessageBox.warning(dialog, "Invalid Input", "Please enter valid numbers for times.")
+    
+    ok_button.clicked.connect(on_ok)
+    cancel_button.clicked.connect(dialog.reject)
+
+    # --- Show dialog ---
+    if dialog.exec_() == QDialog.Accepted:
+        print(f"Polarity: {self.r_peak_polarity_lfp}, "
+              f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}")
+    else:
+        return  # User canceled
+
+    ##################################################################
+
     full_data = self.dataset_intra.synced_data.get_data()[
         self.dataset_intra.selected_channel_index_ecg
         ]
@@ -74,13 +151,43 @@ def find_r_peaks(self):
         self.dataset_intra.synced_data.get_data().shape[1]
         )
     # use the detection threshold set by the user, or 95 as default:
-    detection_threshold = int(self.combo_r_peak_threshold.currentText() or 95) 
+    detection_threshold = int(self.combo_r_peak_threshold.currentText() or 95)
+
+    # # Get additional option to override some parameters if needed:
+    # # open a pop-up window to get user input for polarity and time range
+    # dialog = QDialog(self)
+    # dialog.setWindowTitle("Override Parameters")
+    # dialog.setGeometry(100, 100, 300, 200)
+
+    # # Create layout and widgets for the dialog
+    # layout = QVBoxLayout(dialog)    
+    # label_info = QLabel("You can override the default parameters for R-peak detection below.\n"
+    #                     "Leave fields empty to use default values.", dialog)
+    # layout.addWidget(label_info)
+    # label_polarity = QLabel("R-peak Polarity in LFP Channel (Up/Down):", dialog)
+    # layout.addWidget(label_polarity)
+    # combo_polarity = QComboBox(dialog)
+    # combo_polarity.addItems(["Up", "Down"])
+    # layout.addWidget(combo_polarity)
+    # label_start_time = QLabel("Start Time for Cleaning (seconds):", dialog)
+    # layout.addWidget(label_start_time)
+    # input_start_time = QLineEdit(dialog)
+    # layout.addWidget(input_start_time)
+    # label_end_time = QLabel("End Time for Cleaning (seconds):", dialog)
+    # layout.addWidget(label_end_time)
+    # input_end_time = QLineEdit(dialog)
+    # layout.addWidget(input_end_time)
+
+    # r_peak_polarity_lfp = str(combo_polarity.currentText()) or None
+    # start_cleaning_time = float(input_start_time.text()) or None
+    # end_cleaning_time = float(input_end_time.text()) or None
 
 
     if self.dataset_extra.selected_channel_name_ecg is not None:
         # Use external ECG channel to find R-peaks
         final_peaks, polarity, mean_epoch = find_r_peaks_based_on_ext_ecg(
-            self, full_data, times, detection_threshold, window_artifact = [-0.5, 0.5]
+            self, full_data, times, detection_threshold,
+            window_artifact = [-0.5, 0.5]
             )
         QMessageBox.information(
             self,
@@ -98,7 +205,8 @@ def find_r_peaks(self):
         )
 
         final_peaks, polarity, mean_epoch = find_r_peaks_in_lfp_channel(
-            self, full_data, times, detection_threshold, window = [-0.5, 0.5]
+            self, full_data, times, detection_threshold,
+            window = [-0.5, 0.5]
             ) 
     
     # Check if peak detection was successful
@@ -144,10 +252,16 @@ def find_r_peaks_based_on_ext_ecg(
     """
     last_peak_start, first_peak_end = get_start_end_times(full_data, times)
     
-    print(f"Debug ext ECG: LFP data length: {len(full_data)}")
-    print(f"Debug ext ECG: LFP time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
-    print(f"Debug ext ECG: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
-    
+    # print(f"Debug ext ECG: LFP data length: {len(full_data)}")
+    # print(f"Debug ext ECG: LFP time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
+    # print(f"Debug ext ECG: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
+
+    # Override with user-defined times if provided
+    if self.start_cleaning_time is not None:
+        last_peak_start = self.start_cleaning_time
+    if self.end_cleaning_time is not None:
+        first_peak_end = self.end_cleaning_time
+
     # Validate crop range (same as in find_r_peaks_in_lfp_channel)
     if last_peak_start >= first_peak_end:
         print(f"Warning ext ECG: Invalid crop range detected! Start ({last_peak_start:.2f}) >= End ({first_peak_end:.2f})")
@@ -222,7 +336,7 @@ def find_r_peaks_based_on_ext_ecg(
                 -ecg_z, height=threshold_fallback, distance=min_distance_samples
             )
             
-            print(f"  Trying {fallback_threshold}% threshold: {len(peaks_pos_fb)} pos, {len(peaks_neg_fb)} neg peaks")
+            print(f" Trying {fallback_threshold}% threshold: {len(peaks_pos_fb)} pos, {len(peaks_neg_fb)} neg peaks")
             
             if len(peaks_pos_fb) > 0 or len(peaks_neg_fb) > 0:
                 chosen_peaks = peaks_pos_fb if len(peaks_pos_fb) >= len(peaks_neg_fb) else peaks_neg_fb
@@ -277,6 +391,17 @@ def find_r_peaks_based_on_ext_ecg(
     # Calculate mean absolute values
     mean_abs_max = np.nanmean(np.abs(max_peaks)) if max_peaks else 0
     mean_abs_min = np.nanmean(np.abs(min_peaks)) if min_peaks else 0
+
+    # Override polarity if user specified
+    if self.r_peak_polarity_lfp is not None:
+        polarity = self.r_peak_polarity_lfp
+        print(f"Overriding detected polarity to user-specified: {polarity}")
+        if polarity == 'Up':
+            mean_abs_max = 2
+            mean_abs_min = 1
+        else:
+            mean_abs_max = 1
+            mean_abs_min = 2
 
     # Choose the orientation with the higher mean absolute amplitude in the LFP channel
     lfp_peak_indices = []
@@ -432,11 +557,17 @@ def find_r_peaks_in_lfp_channel(
         window = [-0.5, 0.5]
         ):
     sf_lfp = round(self.dataset_intra.sf)
+
     last_peak_start, first_peak_end = get_start_end_times(full_data, times)
     
-    print(f"Debug: Data length: {len(full_data)}, Sampling frequency: {sf_lfp}")
-    print(f"Debug: Time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
-    print(f"Debug: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
+    # Override with user-defined times if provided
+    if self.start_cleaning_time is not None:
+        last_peak_start = self.start_cleaning_time
+    if self.end_cleaning_time is not None:
+        first_peak_end = self.end_cleaning_time
+    # print(f"Debug: Data length: {len(full_data)}, Sampling frequency: {sf_lfp}")
+    # print(f"Debug: Time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
+    # print(f"Debug: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
     
     # Validate crop range
     if last_peak_start >= first_peak_end:
@@ -478,7 +609,7 @@ def find_r_peaks_in_lfp_channel(
     dmove = sf_lfp  # 1s step
     n_segments = (ns - dwindow) // dmove + 1
     
-    print(f"Debug: Processing {n_segments} segments of {dwindow} samples each")
+    #print(f"Debug: Processing {n_segments} segments of {dwindow} samples each")
     
     detected_peaks_positive = []  # Store peak indices in the original timescale of the cropped_data
     x = np.array(
@@ -539,6 +670,15 @@ def find_r_peaks_in_lfp_channel(
     else:
         detected_peaks = detected_peaks_negative
         polarity = 'Down'
+
+    # Override polarity if user specified
+    if self.r_peak_polarity_lfp is not None:
+        polarity = self.r_peak_polarity_lfp
+        print(f"Overriding detected polarity to user-specified: {polarity}")
+        if polarity == 'Up':
+            detected_peaks = detected_peaks_positive
+        else:
+            detected_peaks = detected_peaks_negative
 
     detected_peaks = np.array(detected_peaks)
     
