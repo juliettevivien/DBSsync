@@ -38,8 +38,12 @@ import pandas as pd
 import pickle
 from copy import deepcopy
 from os.path import basename, dirname, join
+import json
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 from functions.tmsi_poly5reader import Poly5Reader
+import functions.utils
 from pyxdftools.xdfdata import XdfData
 
 ##############################  INPUT FUNCTIONS  ###############################
@@ -58,8 +62,9 @@ def load_int_file(self):
     elif file_name.endswith(".fif"):
         load_fif_file_int(self, file_name)
 
-    # elif file_name.endswith(".json"):
-    #     load_json_file(self, file_name)
+    elif file_name.endswith(".json"):
+        load_json_file(self, file_name)
+        
     if self.config['NoSync'] == True:
         self.btn_choose_int_channel_for_cleaning.setEnabled(True)
 
@@ -133,33 +138,269 @@ def load_json_file(self, file_name: str):
         # here write the logic to read json files, and create the dataframe
         # to show users all the different streams so that they can pick the one
         # they are interested in. Put all this in a separate function (dataframe creation)
+        with open(file_name, 'r') as f:
+            j = json.loads(f.read())        
         
+        list_of_streamings = j['BrainSenseTimeDomain']
+        n_streamings = len(list_of_streamings)
 
+        list_of_stim_streamings = j['BrainSenseLfp']
+        n_stim_streamings = len(list_of_stim_streamings)
 
+        streamings_dict = defaultdict(lambda: defaultdict(dict))
+            
+        stream_times = [0]
+        first_packet_time = None
+        stream_count = 1
 
+        for i_stream, dat in enumerate(list_of_streamings):
+            print(f'Processing streaming {i_stream + 1} / {n_streamings}')
+            print(f'Actual stream count: {stream_count}')
+            first_packet_time = dat['FirstPacketDateTime']
+            print(f'first_packet_time: {first_packet_time}')
+            print(f'last stream time: {stream_times[-1]}')
 
-        # raw_data = read_raw_fieldtrip(
-        #     file_name, info={}, data_name="data"
-        #     )
-        # self.dataset_intra.raw_data = raw_data  # Assign to dataset
-        # self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
-        # self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
-        # self.dataset_intra.times = np.linspace(
-        #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-        #     raw_data.get_data().shape[1]
-        #     )
-        self.file_label_intra.setText(
-            f"Selected File: {basename(file_name)}"
+            if first_packet_time != stream_times[-1] or i_stream == 0:
+            # new stream
+                #print('Entering new stream')
+                streamings_dict[f'streaming_{stream_count}'][f'Channel_{dat["Channel"]}'] = {
+                    'FirstPacketDateTime': first_packet_time,
+                    'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
+                    'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
+                    'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
+                    'TimeDomainData': dat['TimeDomainData'], 
+                    'SampleRateInHz': dat['SampleRateInHz']
+                }
+                stream_count += 1
+            else:
+            # other channel from same stream
+                #print('Entering same stream, different channel')
+                streamings_dict[f'streaming_{stream_count - 1}'][f'Channel_{dat["Channel"]}'] = {
+                    'FirstPacketDateTime': dat['FirstPacketDateTime'],
+                    'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
+                    'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
+                    'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
+                    'TimeDomainData': dat['TimeDomainData'],
+                    'SampleRateInHz': dat['SampleRateInHz']
+                }
+            stream_times.append(first_packet_time)
+
+        #  create a dataframe with all streamings and their channels
+        ends = []
+        prev_streaming_id = None
+        stream_count = -1
+        prev_stream_last_stim_ticks = None
+
+        streamings_df = pd.DataFrame(columns=[
+            'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
+            'LFP Recording duration', 
+            #'First TicksInMses LFP', 'Last TicksInMses LFP', 
+            # 'First TicksInMs stim', 'Last TicksInMs stim',
+            # 'LFP time between rec based on First Packet Time',
+            # 'LFP time between rec based on TicksInMses', 
+            # 'LFP time between rec based on TicksInMs stim',
+            # 'LFP Corrected for missing packets'
+            ])
+        for streaming_id in streamings_dict.keys():
+            stream_count += 1
+            channels = []
+            time_since_last_rec_first_packet = None
+            time_since_last_rec_ticks = None
+            for channel in streamings_dict[streaming_id].keys():
+                channels.append(channel)
+                # check for missing packets and correct LFP data if necessary:
+                print(f'Checking streaming {streaming_id}, channel {channel} for missing packets...')
+                #correct_lfp_data, corrected_or_not = functions.utils.check_and_correct_missings_in_lfp(streamings_dict[streaming_id][channel])
+                #streamings_dict[streaming_id][channel]['Corrected_TimeDomainData'] = correct_lfp_data
+
+                ticks_in_ms = streamings_dict[streaming_id][channel]['TicksInMses']
+                rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
+                rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
+                dt_str = streamings_dict[streaming_id][channel]['FirstPacketDateTime']
+                dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                # compute rec_end_time using dt_obj + rec_duration: 
+                rec_end_time = dt_obj +  timedelta(minutes=rec_dur_min, seconds=rec_dur_sec, milliseconds=rec_dur_msec)
+
+                #time_since_last_rec = dt_obj - ends[-1] if ends else timedelta(0)
+                if ends and streaming_id == prev_streaming_id:
+                    time_since_last_rec = timedelta(0)
+                elif ends:
+                    time_since_last_rec = dt_obj - ends[-1]
+                else:
+                    time_since_last_rec = timedelta(0)
+
+                dt1_parsed = datetime.strptime(streamings_dict[streaming_id][channel]['FirstPacketDateTime'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                # Simply output it in the same visual format as dt2
+                dt1_reformatted = dt1_parsed.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # trim to .XXX milliseconds
+                
+                if time_since_last_rec_first_packet is None:
+                    time_since_last_rec_first_packet = functions.utils.format_timedelta(time_since_last_rec)
+                if time_since_last_rec_ticks is None:
+                    time_since_last_rec_ticks = functions.utils.format_timedelta(timedelta(milliseconds=(ticks_in_ms[0] - (streamings_dict[prev_streaming_id][channel]['TicksInMses'][-1])) )) if ends and streaming_id != prev_streaming_id else '0 days, 0h, 0min, 0s, 0ms'
+                prev_streaming_id = streaming_id
+                # convert time_since_last_rec in milliseconds
+                time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
+                print(time_since_last_rec_ticks_ms)
+                time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
+
+                ends.append(rec_end_time)
+
+            data = list_of_stim_streamings[stream_count]['LfpData']
+            ticks = np.array([d['TicksInMs'] for d in data])
+            right_mA = np.array([d['Right']['mA'] for d in data])
+            left_mA = np.array([d['Left']['mA'] for d in data])
+            time_since_last_rec_ticks_stim = (ticks[0] - 250) - prev_stream_last_stim_ticks if prev_stream_last_stim_ticks is not None else 0
+            prev_stream_last_stim_ticks = ticks[-1]
+
+            # streamings_df = streamings_df.append({
+            # 'Streaming id': streaming_id,
+            # 'LFP Channels': channels,
+            # 'LFP Recording start': dt1_reformatted,
+            # 'LFP Recording end': rec_end_time,
+            # 'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
+            # # 'First TicksInMses LFP': ticks_in_ms[0],
+            # # 'Last TicksInMses LFP': ticks_in_ms[-1],
+            # # 'First TicksInMs stim': ticks[0],
+            # # 'Last TicksInMs stim': ticks[-1],
+            # # 'LFP time between rec based on First Packet Time': time_since_last_rec_first_packet_ms,
+            # # 'LFP time between rec based on TicksInMses': time_since_last_rec_ticks_ms,
+            # # 'LFP time between rec based on TicksInMs stim': time_since_last_rec_ticks_stim,
+            # # 'LFP Corrected for missing packets': corrected_or_not
+            # }, ignore_index=True)    
+            new_row = pd.DataFrame([{
+            'Streaming id': streaming_id,
+            'LFP Channels': channels,
+            'LFP Recording start': dt1_reformatted,
+            'LFP Recording end': rec_end_time,
+            'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
+            }])
+            streamings_df = pd.concat([streamings_df, new_row], ignore_index=True)
+
+        BrainSenseRaws = {}
+
+        for i, stream in enumerate(streamings_dict.keys()):
+            stream_dict = {}
+            ch_names = []
+            stim_ch_names = []
+            data_arrays = []
+            raw = streamings_dict[stream]
+            for ch in raw.keys(): 
+                ch_data = raw[ch]['TimeDomainData']
+                ch_names.append(ch)
+                #data_arrays.append(ch_data)
+                data_arrays.append(np.array(ch_data) * 1e-6)
+                side = 'Left' if 'LEFT' in ch else 'Right'
+                stim_ch_names.append('STIM_' + ch)
+
+        ### HERE ADD A PART TO GET THE STIMULATION CHANNELS DATA (+ THE FILTERED LFP DATA) ###
+        # Because their sampling rate is different, resample them so that they match the LFP data length and crop if necessary (for small irregularities)
+                
+            stim_sf = j['BrainSenseLfp'][i]['SampleRateInHz']  # == 2Hz
+            left_stim = []
+            right_stim = []
+            for k in range(len(j['BrainSenseLfp'][i]['LfpData'])):
+                # get right and left mA values
+                right_mA = j['BrainSenseLfp'][i]['LfpData'][k]['Right']['mA']
+                left_mA = j['BrainSenseLfp'][i]['LfpData'][k]['Left']['mA']
+                right_stim.append(right_mA)
+                left_stim.append(left_mA)        
+            stim_time = np.arange(len(right_stim)) / stim_sf      # e.g. every 0.5 s
+            lfp_time  = np.arange(int(len(right_stim) * (250 / stim_sf))) / 250  # upsampled time
+
+            # resample stim data to match lfp data length
+            # Nearest-neighbor interpolation
+            right_stim_resampled = np.interp(
+                lfp_time,
+                stim_time,
+                right_stim,
+                left=None,
+                right=None,
             )
-        self.dataset_intra.file_name = basename(file_name)
-        self.dataset_intra.file_path = dirname(file_name)
 
-        # Show channel selection and plot buttons for intracranial
+            left_stim_resampled = np.interp(
+                lfp_time,
+                stim_time,
+                left_stim,
+                left=None,
+                right=None,
+            )    
+
+            # add some NaNs if resampled stim data is shorter than lfp data
+            lfp_data_length = len(raw[ch]['TimeDomainData'])
+            if len(left_stim_resampled) < lfp_data_length:
+                left_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(left_stim_resampled)), left_stim_resampled])
+            if len(right_stim_resampled) < lfp_data_length:
+                right_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(right_stim_resampled)), right_stim_resampled])
+            left_stim_resampled_scaled = np.array(left_stim_resampled) * 1e-6
+            right_stim_resampled_scaled = np.array(right_stim_resampled) * 1e-6
+            data_arrays.append(left_stim_resampled_scaled)
+            data_arrays.append(right_stim_resampled_scaled)
+
+            info = mne.create_info(
+            ch_names=ch_names + stim_ch_names,
+            sfreq=250,
+            ch_types=['eeg'] * len(ch_names) + ['eeg'] * len(stim_ch_names)
+            )
+
+            raw = mne.io.RawArray(
+                data = np.array(data_arrays),
+                info = info
+            )
+            #raw.plot(scalings='auto')
+            #raw.save(os.path.join(saving_path, saving_names[i]), overwrite=True)
+            BrainSenseRaws[stream] = raw                
+
+        # Create a pop-up window to show the data frame and let user select the stream they want to load
+        selected_streams = self.show_stream_selection_dialog(streamings_df)
+        if not selected_streams:
+            QMessageBox.warning(self, "No Selection", "No stream was selected.")
+            return
+
+        # Filter BrainSenseRaws based on user selection
+        BrainSenseRaws = {k: v for k, v in BrainSenseRaws.items() if k in selected_streams}
+
+        # There should be only one selected stream
+        selected_stream_id = selected_streams[0]
+
+        # Assign the corresponding MNE Raw object to your dataset
+        self.dataset_intra.raw_data = BrainSenseRaws[selected_stream_id]
+
+        # Optionally, also store related info for convenience
+        self.dataset_intra.sf = self.dataset_intra.raw_data.info['sfreq']
+        self.dataset_intra.ch_names = self.dataset_intra.raw_data.ch_names
+        self.dataset_intra.times = np.linspace(
+            0,
+            self.dataset_intra.raw_data.n_times / self.dataset_intra.sf,
+            self.dataset_intra.raw_data.n_times
+        )
+
+        # Update the GUI label
+        self.file_label_intra.setText(f"Selected File: {basename(file_name)} (Stream: {selected_stream_id})")
+
+        # Enable plotting/select channel buttons
         self.btn_select_channel_intra.setEnabled(True)
         self.channel_label_intra.setEnabled(True)
 
+        # self.dataset_intra.raw_data = raw_data  # Assign to dataset
+        # # self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
+        # # self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
+        # # self.dataset_intra.times = np.linspace(
+        # #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+        # #     raw_data.get_data().shape[1]
+        # #     )
+        # self.file_label_intra.setText(
+        #     f"Selected File: {basename(file_name)}"
+        #     )
+        # self.dataset_intra.file_name = basename(file_name)
+        # self.dataset_intra.file_path = dirname(file_name)
+
+        # # Show channel selection and plot buttons for intracranial
+        # self.btn_select_channel_intra.setEnabled(True)
+        # self.channel_label_intra.setEnabled(True)
+
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to load .json file: {e}")
+
 
 
 def load_ext_file(self):

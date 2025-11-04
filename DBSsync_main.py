@@ -5,7 +5,8 @@ import PyQt5
 from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QComboBox, QApplication, QMainWindow, QPushButton, 
     QVBoxLayout, QHBoxLayout, QWidget, QInputDialog, QMessageBox, 
-    QStackedWidget)
+    QStackedWidget, QDialog, QTableWidget, QTableWidgetItem, QCheckBox, QHeaderView)
+
 from PyQt5.QtGui import QIcon
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -1261,6 +1262,67 @@ class SyncGUI(QMainWindow):
 
         self.btn_confirm_cleaning.setEnabled(True)  # Enable the button after cleaning
 
+
+
+    def show_stream_selection_dialog(self, streamings_df):
+        class StreamSelectionDialog(QDialog):
+            def __init__(self, df):
+                super().__init__()
+                self.setWindowTitle("Select Streams to Load")
+                self.df = df
+                self.selected_streams = []
+                self.resize(800, 400)
+                
+                layout = QVBoxLayout()
+                self.setLayout(layout)
+                
+                # Table
+                self.table = QTableWidget()
+                self.table.setColumnCount(len(df.columns) + 1)  # Extra column for checkbox
+                self.table.setHorizontalHeaderLabels(['Select'] + list(df.columns))
+                self.table.setRowCount(len(df))
+                
+                for i, row in df.iterrows():
+                    # Checkbox
+                    checkbox = QCheckBox()
+                    checkbox_widget = QWidget()
+                    h_layout = QHBoxLayout()
+                    h_layout.addWidget(checkbox)
+                    #h_layout.setAlignment(checkbox, 1)  # center
+                    #h_layout.setAlignment(Qt.AlignCenter)
+                    h_layout.setContentsMargins(0,0,0,0)
+                    checkbox_widget.setLayout(h_layout)
+                    self.table.setCellWidget(i, 0, checkbox_widget)
+                    
+                    # Fill rest of the columns
+                    for j, col in enumerate(df.columns):
+                        item = QTableWidgetItem(str(row[col]))
+                        item.setFlags(item.flags() & ~2)  # make read-only
+                        self.table.setItem(i, j+1, item)
+                
+                self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+                layout.addWidget(self.table)
+                
+                # OK button
+                ok_btn = QPushButton("Load Selected Streams")
+                ok_btn.clicked.connect(self.accept)
+                layout.addWidget(ok_btn)
+
+            def get_selected_streams(self):
+                selected = []
+                for i in range(self.table.rowCount()):
+                    checkbox_widget = self.table.cellWidget(i, 0)
+                    checkbox = checkbox_widget.layout().itemAt(0).widget()
+                    if checkbox.isChecked():
+                        selected.append(self.df.iloc[i]['Streaming id'])
+                return selected
+
+        dialog = StreamSelectionDialog(streamings_df)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_streams = dialog.get_selected_streams()
+            print("User selected streams:", selected_streams)
+            return selected_streams
+        return []
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
