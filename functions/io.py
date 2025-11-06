@@ -329,8 +329,12 @@ def load_json_file(self, file_name: str):
             lfp_data_length = len(raw[ch]['TimeDomainData'])
             if len(left_stim_resampled) < lfp_data_length:
                 left_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(left_stim_resampled)), left_stim_resampled])
+            elif len(left_stim_resampled) > lfp_data_length:
+                left_stim_resampled = left_stim_resampled[-lfp_data_length:]
             if len(right_stim_resampled) < lfp_data_length:
                 right_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(right_stim_resampled)), right_stim_resampled])
+            elif len(right_stim_resampled) > lfp_data_length:
+                right_stim_resampled = right_stim_resampled[-lfp_data_length:]            
             left_stim_resampled_scaled = np.array(left_stim_resampled) * 1e-6
             right_stim_resampled_scaled = np.array(right_stim_resampled) * 1e-6
             data_arrays.append(left_stim_resampled_scaled)
