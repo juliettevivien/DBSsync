@@ -17,6 +17,7 @@ import mne
 import webbrowser
 from functools import partial
 import json
+import os
 
 from functions.io import (
     select_saving_folder,
@@ -89,7 +90,9 @@ class SyncGUI(QMainWindow):
 
         # Set up the main window
         self.setWindowTitle("DBSsync GUI")
-        self.setWindowIcon(QIcon("logo_resized.png"))
+        icon_path = os.path.join(os.path.dirname(__file__), "logo-dbssync.png")
+        self.setWindowIcon(QIcon(icon_path))
+        self.setWindowIcon(QIcon("logo-dbssync.png"))
         self.setGeometry(100, 100, 1000, 600)
 
         # Create a stacked widget to hold multiple pages
