@@ -41,6 +41,7 @@ class DataSet:
         self.flag_cleaned = None
         self.selected_stream = None
         self.list_of_streams = None
+        self.selected_json_stream_name = None
 
 
 class Button(QPushButton):

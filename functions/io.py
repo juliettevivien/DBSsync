@@ -209,7 +209,7 @@ def load_json_file(self, file_name: str):
             for channel in streamings_dict[streaming_id].keys():
                 channels.append(channel)
                 # check for missing packets and correct LFP data if necessary:
-                print(f'Checking streaming {streaming_id}, channel {channel} for missing packets...')
+                #print(f'Checking streaming {streaming_id}, channel {channel} for missing packets...')
                 #correct_lfp_data, corrected_or_not = functions.utils.check_and_correct_missings_in_lfp(streamings_dict[streaming_id][channel])
                 #streamings_dict[streaming_id][channel]['Corrected_TimeDomainData'] = correct_lfp_data
 
@@ -288,11 +288,10 @@ def load_json_file(self, file_name: str):
                 ch_data = raw[ch]['TimeDomainData']
                 ch_names.append(ch)
                 #data_arrays.append(ch_data)
-                data_arrays.append(np.array(ch_data) * 1e-6)
+                data_arrays.append(np.array(ch_data)) #* 1e-6)
                 side = 'Left' if 'LEFT' in ch else 'Right'
                 stim_ch_names.append('STIM_' + ch)
 
-        ### HERE ADD A PART TO GET THE STIMULATION CHANNELS DATA (+ THE FILTERED LFP DATA) ###
         # Because their sampling rate is different, resample them so that they match the LFP data length and crop if necessary (for small irregularities)
                 
             stim_sf = j['BrainSenseLfp'][i]['SampleRateInHz']  # == 2Hz
@@ -335,8 +334,8 @@ def load_json_file(self, file_name: str):
                 right_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(right_stim_resampled)), right_stim_resampled])
             elif len(right_stim_resampled) > lfp_data_length:
                 right_stim_resampled = right_stim_resampled[-lfp_data_length:]            
-            left_stim_resampled_scaled = np.array(left_stim_resampled) * 1e-6
-            right_stim_resampled_scaled = np.array(right_stim_resampled) * 1e-6
+            left_stim_resampled_scaled = np.array(left_stim_resampled) #* 1e-6
+            right_stim_resampled_scaled = np.array(right_stim_resampled) #* 1e-6
             data_arrays.append(left_stim_resampled_scaled)
             data_arrays.append(right_stim_resampled_scaled)
 
@@ -354,20 +353,24 @@ def load_json_file(self, file_name: str):
             #raw.save(os.path.join(saving_path, saving_names[i]), overwrite=True)
             BrainSenseRaws[stream] = raw                
 
+        # Now BrainSenseRaws contains all streams as MNE Raw objects, but we still need to check for missing packets and correct them
+        # Loop through each stream and check for missing packets in each channel based on the function check_and_correct_missing_packets()
+        BrainSenseRawsCorrected, streamings_df_corrected = functions.utils.check_and_correct_missing_packets(streamings_dict, BrainSenseRaws, streamings_df) 
+
         # Create a pop-up window to show the data frame and let user select the stream they want to load
-        selected_streams = self.show_stream_selection_dialog(streamings_df)
+        selected_streams = self.show_stream_selection_dialog(streamings_df_corrected)
         if not selected_streams:
             QMessageBox.warning(self, "No Selection", "No stream was selected.")
             return
 
         # Filter BrainSenseRaws based on user selection
-        BrainSenseRaws = {k: v for k, v in BrainSenseRaws.items() if k in selected_streams}
+        BrainSenseRawsCorrected = {k: v for k, v in BrainSenseRawsCorrected.items() if k in selected_streams}
 
         # There should be only one selected stream
         selected_stream_id = selected_streams[0]
 
         # Assign the corresponding MNE Raw object to your dataset
-        self.dataset_intra.raw_data = BrainSenseRaws[selected_stream_id]
+        self.dataset_intra.raw_data = BrainSenseRawsCorrected[selected_stream_id]
 
         # Optionally, also store related info for convenience
         self.dataset_intra.sf = self.dataset_intra.raw_data.info['sfreq']
@@ -377,10 +380,13 @@ def load_json_file(self, file_name: str):
             self.dataset_intra.raw_data.n_times / self.dataset_intra.sf,
             self.dataset_intra.raw_data.n_times
         )
+        self.dataset_intra.file_name = basename(file_name)
+        self.dataset_intra.file_path = dirname(file_name)    
 
         # Update the GUI label
         self.file_label_intra.setText(f"Selected File: {basename(file_name)} (Stream: {selected_stream_id})")
-
+        self.dataset_intra.selected_json_stream_name = selected_stream_id
+        
         # Enable plotting/select channel buttons
         self.btn_select_channel_intra.setEnabled(True)
         self.channel_label_intra.setEnabled(True)

@@ -50,6 +50,7 @@ import scipy
 import scipy.signal
 from scipy.signal import find_peaks
 import mne
+import ast 
 
 from functions.utils import get_start_end_times, find_similar_sample
 from functions.classes import PlotWindow
@@ -89,6 +90,15 @@ def manual_override(self):
     end_layout.addWidget(end_edit)
     layout.addLayout(end_layout)
 
+    # --- Line edit for periods to exclude peaks from ---
+    exclusion_layout = QHBoxLayout()
+    exclusion_label = QLabel("Exclusion period (s) as tuples:")
+    exclusion_edit = QLineEdit()
+    exclusion_edit.setPlaceholderText("None")
+    exclusion_layout.addWidget(exclusion_label)
+    exclusion_layout.addWidget(exclusion_edit)
+    layout.addLayout(exclusion_layout)
+
     # --- OK / Cancel buttons ---
     button_layout = QHBoxLayout()
     ok_button = QPushButton("OK")
@@ -112,10 +122,28 @@ def manual_override(self):
             end_text = end_edit.text().strip()
             end_cleaning_time = float(end_text) if end_text else None
 
+            exclusion_text = exclusion_edit.text().strip()
+            if exclusion_text:
+                try:
+                    exclusion_periods = ast.literal_eval(exclusion_text)
+                    # Check it's a list of tuples of floats
+                    if (isinstance(exclusion_periods, list) and
+                        all(isinstance(t, tuple) and len(t) == 2 for t in exclusion_periods)):
+                        exclusion_periods = [(float(a), float(b)) for a, b in exclusion_periods]
+                    else:
+                        raise ValueError
+                except Exception:
+                    QMessageBox.warning(dialog, "Invalid Input",
+                        "Please enter exclusion periods in the format [(6.2, 8.8), (101.45, 123.65)].")
+                    return
+            else:
+                exclusion_periods = None
+
             # store as instance attributes or process immediately
             self.r_peak_polarity_lfp = r_peak_polarity_lfp
             self.start_cleaning_time = start_cleaning_time
             self.end_cleaning_time = end_cleaning_time
+            self.exclusion_periods = exclusion_periods
 
             dialog.accept()
         except ValueError:
@@ -127,7 +155,8 @@ def manual_override(self):
     # --- Show dialog ---
     if dialog.exec_() == QDialog.Accepted:
         print(f"Polarity: {self.r_peak_polarity_lfp}, "
-            f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}")
+            f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}, "
+            f"Ignoring: {self.exclusion_periods}")
     else:
         return  # User canceled
 
@@ -175,23 +204,23 @@ def find_r_peaks(self):
         QMessageBox.information(
             self,
             "R-Peak Detection",
-            f"R-peaks have been detected in the LFP channel using the ECG channel provided.",
+            f"{len(final_peaks)} R-peaks have been detected in the LFP channel using the ECG channel provided.",
             QMessageBox.Ok
         )    
     else:
-        # Add a message window to inform the user about the method and threshold used:
-        QMessageBox.information(
-            self,
-            "R-Peak Detection",
-            f"R-peaks have been detected in the LFP channel alone, using a threshold of {detection_threshold}%.",
-            QMessageBox.Ok
-        )
-
         final_peaks, polarity, mean_epoch = find_r_peaks_in_lfp_channel(
             self, full_data, times, detection_threshold,
             window = [-0.5, 0.5]
             ) 
-    
+        
+        # Add a message window to inform the user about the method and threshold used:
+        QMessageBox.information(
+            self,
+            "R-Peak Detection",
+            f"{len(final_peaks)} R-peaks have been detected in the LFP channel alone, using a threshold of {detection_threshold}%.",
+            QMessageBox.Ok
+        )
+
     # Check if peak detection was successful
     if len(final_peaks) == 0:
         print("Peak detection failed - no peaks found")
@@ -213,6 +242,7 @@ def find_r_peaks(self):
     self.r_peak_polarity_lfp = None
     self.start_cleaning_time = None
     self.end_cleaning_time = None
+    self.exclusion_periods = None
 
     print("R-peaks found and stored in the main window.")
 
@@ -431,6 +461,13 @@ def find_r_peaks_based_on_ext_ecg(
             p <= int(first_peak_end * self.dataset_intra.sf)
         )]
     
+    # Also remove peaks in exclusion periods if provided
+    if self.exclusion_periods is not None:
+        lfp_peak_indices = [
+            p for p in lfp_peak_indices
+            if not any(start <= (p / self.dataset_intra.sf) <= end for start, end in self.exclusion_periods)
+        ]
+
     print(f"LFP peaks: {initial_lfp_count} total, {len(lfp_peak_indices)} after time filtering")
     
     # Check if we have sufficient LFP peaks
@@ -511,27 +548,30 @@ def find_r_peaks_based_on_ext_ecg(
     
     print(f"LFP: Created template from {len(epochs)} valid epochs")
 
-    # # Plot the detected ECG epochs
-    # self.canvas_ecg_artifact.setEnabled(True)
-    # self.toolbar_ecg_artifact.setEnabled(True)
-    # self.ax_ecg_artifact.clear()
-    # self.ax_ecg_artifact.set_title("Detected ECG epochs")
+    # Plot the detected ECG epochs
+    self.canvas_ecg_artifact.setEnabled(True)
+    self.toolbar_ecg_artifact.setEnabled(True)
+    self.ax_ecg_artifact.clear()
+    self.ax_ecg_artifact.set_title("Detected ECG epochs")
 
-    # for epoch in epochs:
-    #     self.ax_ecg_artifact.plot(time, epoch, color='gray', alpha=0.3)
+    for epoch in epochs:
+        self.ax_ecg_artifact.plot(time, epoch, color='gray', alpha=0.3)
 
-    # self.ax_ecg_artifact.plot(
-    #     time, 
-    #     mean_epoch, 
-    #     color='black', 
-    #     linewidth=2, 
-    #     label='Average ECG Template'
-    #     )
-    # self.ax_ecg_artifact.set_xlabel("Time (s)")
-    # self.ax_ecg_artifact.set_ylabel("Amplitude")
-    # self.ax_ecg_artifact.legend()
-    # self.canvas_ecg_artifact.draw()
+    self.ax_ecg_artifact.plot(
+        time, 
+        mean_epoch, 
+        color='black', 
+        linewidth=2, 
+        label='Average ECG Template'
+        )
+    self.ax_ecg_artifact.set_xlabel("Time (s)")
+    self.ax_ecg_artifact.set_ylabel("Amplitude")
+    self.ax_ecg_artifact.legend()
+    self.canvas_ecg_artifact.draw()
 
+    ## store start and end times of cleaning
+    self.after_first_stim_pulses = last_peak_start
+    self.before_last_stim_pulses = first_peak_end
 
     return lfp_peak_indices, polarity, mean_epoch
 
@@ -552,6 +592,11 @@ def find_r_peaks_in_lfp_channel(
         print("NoSync mode: Using full data without cropping.")
         start_idx = 0
         end_idx = len(full_data)
+        # Override with user-defined times if provided
+        if self.start_cleaning_time is not None:
+            start_idx = int(self.start_cleaning_time * sf_lfp)
+        if self.end_cleaning_time is not None:
+            end_idx = int(self.end_cleaning_time * sf_lfp)
     else:
         last_peak_start, first_peak_end = get_start_end_times(full_data, times)
         
@@ -782,14 +827,27 @@ def find_r_peaks_in_lfp_channel(
     # Adjust the final peaks to the original data scale
     final_peaks = final_peaks + start_idx
 
+    # Remove peaks in exclusion periods if provided
+    if self.exclusion_periods is not None:
+        final_peaks = [
+            p for p in final_peaks
+            if not any(start <= (p / self.dataset_intra.sf) <= end for start, end in self.exclusion_periods)
+        ]
+
     # plot the detected peaks
     self.canvas_detected_peaks.setEnabled(True)
     self.toolbar_detected_peaks.setEnabled(True)
     self.ax_detected_peaks.clear()
     self.ax_detected_peaks.set_title('Detected Peaks')
-    self.ax_detected_peaks.plot(full_data, label='Raw Channel')
+    # self.ax_detected_peaks.plot(full_data, label='Raw Channel')
+    # self.ax_detected_peaks.plot(
+    #     final_peaks, full_data[final_peaks], 'ro', label='Detected Peaks'
+    #     )
+    self.ax_detected_peaks.plot(times, full_data, label='Raw LFP', color='black')
     self.ax_detected_peaks.plot(
-        final_peaks, full_data[final_peaks], 'ro', label='Detected Peaks'
+        np.array(times)[final_peaks], 
+        np.array(full_data)[final_peaks], 
+        'ro', label='Detected Peaks'
         )
     self.canvas_detected_peaks.draw()
 
@@ -798,6 +856,9 @@ def find_r_peaks_in_lfp_channel(
     hr = 60 / np.mean(peak_intervals) if len(peak_intervals) > 0 else 0
     self.label_heart_rate_lfp.setText(f'Heart rate: {hr} bpm')
 
+    ## store start and end times of cleaning
+    self.after_first_stim_pulses = last_peak_start
+    self.before_last_stim_pulses = first_peak_end
 
     return final_peaks, polarity, mean_epoch
 
@@ -880,13 +941,17 @@ def clean_ecg_interpolation(self):
     n_fft = int(round(self.dataset_intra.sf))
     n_overlap=int(round(self.dataset_intra.sf)/2)
 
+    # make sure that stimulation pulses are not included in the PSD calculation
+    start_index = int(self.after_first_stim_pulses * self.dataset_intra.sf)
+    end_index = int(self.before_last_stim_pulses * self.dataset_intra.sf)
+
     psd_raw, freqs_raw = mne.time_frequency.psd_array_welch(
-        full_data,self.dataset_intra.sf,fmin=0,
+        full_data[start_index: end_index],self.dataset_intra.sf,fmin=0,
         fmax=125,n_fft=n_fft,
         n_overlap=n_overlap)
     
     psd_clean, freqs_clean = mne.time_frequency.psd_array_welch(
-        clean_data,self.dataset_intra.sf,fmin=0,
+        clean_data[start_index: end_index],self.dataset_intra.sf,fmin=0,
         fmax=125,n_fft=n_fft,
         n_overlap=n_overlap)
 
@@ -1041,13 +1106,17 @@ def clean_ecg_template_sub(self):
     n_fft = int(round(self.dataset_intra.sf))
     n_overlap=int(round(self.dataset_intra.sf)/2)
 
+    # make sure that stimulation pulses are not included in the PSD calculation
+    start_index = int(self.after_first_stim_pulses * self.dataset_intra.sf)
+    end_index = int(self.before_last_stim_pulses * self.dataset_intra.sf)
+
     psd_raw, freqs_raw = mne.time_frequency.psd_array_welch(
-        full_data,self.dataset_intra.sf,fmin=0,
+        full_data[start_index: end_index],self.dataset_intra.sf,fmin=0,
         fmax=125,n_fft=n_fft,
         n_overlap=n_overlap)
     
     psd_clean, freqs_clean = mne.time_frequency.psd_array_welch(
-        clean_data,self.dataset_intra.sf,fmin=0,
+        clean_data[start_index: end_index],self.dataset_intra.sf,fmin=0,
         fmax=125,n_fft=n_fft,
         n_overlap=n_overlap)
 

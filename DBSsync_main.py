@@ -82,6 +82,9 @@ class SyncGUI(QMainWindow):
         self.r_peak_polarity_lfp = None  # initialize as None to allow for potential user override
         self.start_cleaning_time = None  # initialize as None to allow for potential user override
         self.end_cleaning_time = None  # initialize as None to allow for potential user override
+        self.exclusion_periods = None  # initialize as None to allow for potential user override
+        self.after_first_stim_pulses = None
+        self.before_last_stim_pulses = None
 
         # Set up the main window
         self.setWindowTitle("DBSsync GUI")
@@ -1240,13 +1243,17 @@ class SyncGUI(QMainWindow):
             n_fft = int(round(self.dataset_intra.sf))
             n_overlap=int(round(self.dataset_intra.sf)/2)
 
+            # make sure that stimulation pulses are not included in the PSD calculation
+            start_index = int(self.after_first_stim_pulses * self.dataset_intra.sf)
+            end_index = int(self.before_last_stim_pulses * self.dataset_intra.sf)
+
             psd_raw, freqs_raw = mne.time_frequency.psd_array_welch(
-                self.full_data,self.dataset_intra.sf,fmin=0,
+                self.full_data[start_index:end_index],self.dataset_intra.sf,fmin=0,
                 fmax=125,n_fft=n_fft,
                 n_overlap=n_overlap)
             
             psd_clean, freqs_clean = mne.time_frequency.psd_array_welch(
-                clean_data_full,self.dataset_intra.sf,fmin=0,
+                clean_data_full[start_index:end_index],self.dataset_intra.sf,fmin=0,
                 fmax=125,n_fft=n_fft,
                 n_overlap=n_overlap)
 
