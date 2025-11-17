@@ -113,7 +113,7 @@ section {
     margin: 1rem 2vw 0.5rem 2vw;
 }
 
-.logo-resync {
+.logo-dbssync {
     height: 5vw; /* Adjusts with viewport */
     margin: 1rem;
 }
@@ -200,7 +200,7 @@ a[href="#figure1"]:hover, a[href="#figure2"]:hover, a[href="#figure3"]:hover, a[
         display: none; /* Hide menu on smaller screens */
     }
 
-    .logo-img, .logo-resync {
+    .logo-img, .logo-dbssync {
         height: auto;
         max-width: 50%; /* Scale logo down */
     }
