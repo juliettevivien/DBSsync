@@ -83,6 +83,7 @@ class SyncGUI(QMainWindow):
         self.start_cleaning_time = None  # initialize as None to allow for potential user override
         self.end_cleaning_time = None  # initialize as None to allow for potential user override
         self.exclusion_periods = None  # initialize as None to allow for potential user override
+        self.detection_threshold = 95  # default R-peak detection threshold
         self.after_first_stim_pulses = None
         self.before_last_stim_pulses = None
 
@@ -766,11 +767,11 @@ class SyncGUI(QMainWindow):
 
         # Add a QComboBox to select the threshold for R-peak detection, with a 
         # default value of 95:
-        self.combo_r_peak_threshold = QComboBox()
-        self.combo_r_peak_threshold.addItems(["95", "96", "97", "98", "99"])
-        self.combo_r_peak_threshold.setCurrentText("95")  # Set default value
-        self.combo_r_peak_threshold.setEnabled(False)  # Should be enabled only when the channel is selected
-        layout_r_peak_detect.addWidget(self.combo_r_peak_threshold)
+        # self.combo_r_peak_threshold = QComboBox()
+        # self.combo_r_peak_threshold.addItems(["95", "96", "97", "98", "99"])
+        # self.combo_r_peak_threshold.setCurrentText("95")  # Set default value
+        # self.combo_r_peak_threshold.setEnabled(False)  # Should be enabled only when the channel is selected
+        # layout_r_peak_detect.addWidget(self.combo_r_peak_threshold)
 
         # Add a button for manual override of parameters if needed
         self.btn_manual_override = Button("Manual Override", "lightyellow")

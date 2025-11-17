@@ -269,7 +269,7 @@ def plot_overlapped_channels_ecg(self):
         self.ax_overlapped.legend(loc='upper left')
         self.canvas_overlapped.draw()
         self.btn_detect_r_peaks.setEnabled(True)
-        self.combo_r_peak_threshold.setEnabled(True)
+        #self.combo_r_peak_threshold.setEnabled(True)
         self.btn_manual_override.setEnabled(True)
 
     else:
@@ -288,7 +288,7 @@ def plot_overlapped_channels_ecg(self):
         self.ax_overlapped.legend(loc='upper left')
         self.canvas_overlapped.draw()
         self.btn_detect_r_peaks.setEnabled(True)
-        self.combo_r_peak_threshold.setEnabled(True)
+        #self.combo_r_peak_threshold.setEnabled(True)
         self.btn_manual_override.setEnabled(True)
 
 

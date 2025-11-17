@@ -48,7 +48,7 @@ from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit
 import numpy as np
 import scipy
 import scipy.signal
-from scipy.signal import find_peaks
+#from scipy.signal import find_peaks
 import mne
 import ast 
 
@@ -99,6 +99,15 @@ def manual_override(self):
     exclusion_layout.addWidget(exclusion_edit)
     layout.addLayout(exclusion_layout)
 
+    threshold_layout = QHBoxLayout()
+    threshold_label = QLabel("R-peak detection threshold (%):")
+    combo_r_peak_threshold = QComboBox()
+    combo_r_peak_threshold.addItems(["95", "96", "97", "98", "99"])
+    combo_r_peak_threshold.setCurrentText("95")  # Set default value   
+    threshold_layout.addWidget(threshold_label)
+    threshold_layout.addWidget(combo_r_peak_threshold) 
+    layout.addLayout(threshold_layout)
+
     # --- OK / Cancel buttons ---
     button_layout = QHBoxLayout()
     ok_button = QPushButton("OK")
@@ -144,6 +153,7 @@ def manual_override(self):
             self.start_cleaning_time = start_cleaning_time
             self.end_cleaning_time = end_cleaning_time
             self.exclusion_periods = exclusion_periods
+            self.detection_threshold = int(combo_r_peak_threshold.currentText() or 95)
 
             dialog.accept()
         except ValueError:
@@ -156,7 +166,7 @@ def manual_override(self):
     if dialog.exec_() == QDialog.Accepted:
         print(f"Polarity: {self.r_peak_polarity_lfp}, "
             f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}, "
-            f"Ignoring: {self.exclusion_periods}")
+            f"Ignoring: {self.exclusion_periods}, Threshold: {self.detection_threshold}%")
     else:
         return  # User canceled
 
@@ -191,14 +201,11 @@ def find_r_peaks(self):
             self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
             self.dataset_intra.synced_data.get_data().shape[1]
             )
-    # use the detection threshold set by the user, or 95 as default:
-    detection_threshold = int(self.combo_r_peak_threshold.currentText() or 95)
-
 
     if self.dataset_extra.selected_channel_name_ecg is not None:
         # Use external ECG channel to find R-peaks
         final_peaks, polarity, mean_epoch = find_r_peaks_based_on_ext_ecg(
-            self, full_data, times, detection_threshold,
+            self, full_data, times, self.detection_threshold,
             window_artifact = [-0.5, 0.5]
             )
         QMessageBox.information(
@@ -209,7 +216,7 @@ def find_r_peaks(self):
         )    
     else:
         final_peaks, polarity, mean_epoch = find_r_peaks_in_lfp_channel(
-            self, full_data, times, detection_threshold,
+            self, full_data, times, self.detection_threshold,
             window = [-0.5, 0.5]
             ) 
         
@@ -217,7 +224,7 @@ def find_r_peaks(self):
         QMessageBox.information(
             self,
             "R-Peak Detection",
-            f"{len(final_peaks)} R-peaks have been detected in the LFP channel alone, using a threshold of {detection_threshold}%.",
+            f"{len(final_peaks)} R-peaks have been detected in the LFP channel alone, using a threshold of {self.detection_threshold}%.",
             QMessageBox.Ok
         )
 
@@ -243,6 +250,7 @@ def find_r_peaks(self):
     self.start_cleaning_time = None
     self.end_cleaning_time = None
     self.exclusion_periods = None
+    self.detection_threshold = 95  # reset to default
 
     print("R-peaks found and stored in the main window.")
 
@@ -597,6 +605,9 @@ def find_r_peaks_in_lfp_channel(
             start_idx = int(self.start_cleaning_time * sf_lfp)
         if self.end_cleaning_time is not None:
             end_idx = int(self.end_cleaning_time * sf_lfp)
+
+        last_peak_start = start_idx / sf_lfp
+        first_peak_end = end_idx / sf_lfp
     else:
         last_peak_start, first_peak_end = get_start_end_times(full_data, times)
         
