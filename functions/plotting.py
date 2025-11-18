@@ -51,7 +51,8 @@ def plot_channel_intra(self):
         channel_data = self.dataset_intra.raw_data.get_data()[
              self.dataset_intra.selected_channel_index
              ]
-        times = self.dataset_intra.times
+        #times = self.dataset_intra.times
+        times = np.linspace(0, len(channel_data)/self.dataset_intra.sf, len(channel_data))
         self.ax_intra.plot(times, channel_data)
         self.ax_intra.set_title(
              f"Channel {self.dataset_intra.selected_channel_index} data - {self.dataset_intra.selected_channel_name}"
@@ -154,7 +155,8 @@ def plot_scatter_channel_intra(self, art_start_intra=None):
     channel_data = self.dataset_intra.raw_data.get_data()[
          self.dataset_intra.selected_channel_index
          ]
-    times = self.dataset_intra.raw_data.times  # Time vector corresponding to the data points
+    #times = self.dataset_intra.raw_data.times  # Time vector corresponding to the data points
+    times = np.linspace(0, len(channel_data)/self.dataset_intra.sf, len(channel_data))
     
     # Plot scatter points
     start = int(round(
@@ -269,7 +271,6 @@ def plot_overlapped_channels_ecg(self):
         self.ax_overlapped.legend(loc='upper left')
         self.canvas_overlapped.draw()
         self.btn_detect_r_peaks.setEnabled(True)
-        #self.combo_r_peak_threshold.setEnabled(True)
         self.btn_manual_override.setEnabled(True)
 
     else:
@@ -288,7 +289,6 @@ def plot_overlapped_channels_ecg(self):
         self.ax_overlapped.legend(loc='upper left')
         self.canvas_overlapped.draw()
         self.btn_detect_r_peaks.setEnabled(True)
-        #self.combo_r_peak_threshold.setEnabled(True)
         self.btn_manual_override.setEnabled(True)
 
 

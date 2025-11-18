@@ -306,3 +306,4 @@ def compute_eff_sf(self):
     self.label_eff_sf.setText(
         f"The effective sampling frequency of the intracranial recording is actually {self.dataset_intra.eff_sf} and will be used for synchronization.")
 
+

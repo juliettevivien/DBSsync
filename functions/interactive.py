@@ -1,6 +1,6 @@
 """
 This module contains functions to interactively select channels and artifacts
-from intracranial and external recordings in a PyQt5 application. It allows users
+from intracranial and external recordings in DBSsync GUI. It allows users
 to select channels from a list, choose artifacts by clicking on a plot, and apply
 filters to the data. The selected channels and artifacts are then used for further
 analysis or visualization.
@@ -23,15 +23,12 @@ The module includes the following functions:
         from the external dataset for ECG cleaning.
     - `validate_filtering`: Applies a low-pass filter to the left and right
         channels before cleaning, based on the user input in the filtering option box.
-        
-
 """
 
 
 import numpy as np
 import matplotlib
 import scipy
-
 matplotlib.use("Qt5Agg")
 
 from PyQt5.QtWidgets import (
@@ -39,8 +36,6 @@ from PyQt5.QtWidgets import (
     QMessageBox, QPushButton, QVBoxLayout, QWidget
 )
 from matplotlib.backend_bases import MouseButton
-
-
 
 
 def prompt_channel_name_intra(self):
@@ -71,8 +66,7 @@ def prompt_channel_name_intra(self):
                 self.btn_artifact_detect_intra.setEnabled(True)    
                 self.label_automatic_artifact_time_intra.setVisible(True)   
                 self.btn_manual_select_artifact_intra.setEnabled(True)
-                self.label_manual_artifact_time_intra.setVisible(True)
-                
+                self.label_manual_artifact_time_intra.setVisible(True)        
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to select channel: {e}")
@@ -212,8 +206,6 @@ def select_ecg_channel_to_compute_hr_external(self):
         dialog.setLayout(layout)
         dialog.show()
 
-
-
 def select_last_artifact_intra(self):
     """
     This function is used to compute the effective sampling frequency.
@@ -329,12 +321,7 @@ def select_last_artifact_extra(self):
 
 def choose_int_channel_for_cleaning(self):
     """Prompt for channel name selection in intracranial file for ecg cleaning."""
-    # if self.config['NoSync'] == True:
-    #     channel_names = self.dataset_intra.ch_names
-
-    # else:
     try:
-    # if self.dataset_intra.synced_data:
         channel_names = self.dataset_intra.ch_names  # List of channel names
         channel_name, ok = QInputDialog.getItem(
             self, "Channel Selection", "Select a channel:", channel_names,
@@ -355,6 +342,7 @@ def choose_int_channel_for_cleaning(self):
                 
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to select channel: {e}")
+
 
 def choose_ext_channel_for_cleaning(self):
     """Prompt for channel name selection for external ECG channel"""
@@ -386,7 +374,7 @@ def validate_filtering(self):
     try:    
         if self.box_filtering_option.text() != "":
             if self.config['NoSync'] == True:
-                # Extract the original channel before you overwrite it
+                # Extract the original channel before overwriting it
                 raw_new_left = self.dataset_intra.raw_data.copy().pick_channels(
                     [self.dataset_intra.raw_data.ch_names[0]]
                     )

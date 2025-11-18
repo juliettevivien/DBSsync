@@ -13,11 +13,14 @@ and to create a dialog for selecting streams containing sync pulses.
 
 
 The module contains the following main functions:
+- 'load_int_file`: Load an intracranial file (.mat, .json or .fif) using sub-functions
 - `load_mat_file`: Load a .mat file and extract relevant data.
-- `load_ext_file`: Load an external file (.xdf or .poly5) and extract
-    relevant data.
+- `load_fif_file_int`: Load a .fif file for intracranial data and extract relevant data.
+- `load_json_file`: Load a .json file for intracranial data and extract relevant data.
+- `load_ext_file`: Load an external file (.xdf, .fif or .poly5) using sub-functions.
 - `load_poly5_file`: Load a .poly5 file and extract relevant data.
 - `load_xdf_file`: Load a .xdf file and extract relevant data.
+- `load_fif_file_ext`: Load a .fif file for external data and extract relevant data.
 - `find_sync_stream`: Find the stream containing synchronization pulses in a .xdf file.
 - `select_saving_folder`: Open a dialog to select a folder for saving synchronized datasets.
 - `save_datasets_as_set`: Save synchronized datasets as .set files.
@@ -57,48 +60,40 @@ def load_int_file(self):
         )
     
     if file_name.endswith(".mat"):
-        load_mat_file(self, file_name)
-    
+        load_mat_file(self, file_name)    
     elif file_name.endswith(".fif"):
         load_fif_file_int(self, file_name)
-
     elif file_name.endswith(".json"):
-        load_json_file(self, file_name)
-        
+        load_json_file(self, file_name)    
     if self.config['NoSync'] == True:
         self.btn_choose_int_channel_for_cleaning.setEnabled(True)
 
 def load_mat_file(self, file_name):
-    """Load .mat file."""
-    # file_name, _ = QFileDialog.getOpenFileName(
-    #     self, "Select MAT File", "", "MAT Files (*.mat);;All Files (*)"
-    #     )
-    
-    if file_name:
-        try:
-            # Load the .mat file using mne's read_raw_fieldtrip
-            raw_data = read_raw_fieldtrip(
-                file_name, info={}, data_name="data"
-                )
-            self.dataset_intra.raw_data = raw_data  # Assign to dataset
-            self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
-            self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
-            self.dataset_intra.times = np.linspace(
-                0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-                raw_data.get_data().shape[1]
-                )
-            self.file_label_intra.setText(
-                f"Selected File: {basename(file_name)}"
-                )
-            self.dataset_intra.file_name = basename(file_name)
-            self.dataset_intra.file_path = dirname(file_name)
+    """Load .mat file."""    
+    try:
+        # Load the .mat file using mne's read_raw_fieldtrip
+        raw_data = read_raw_fieldtrip(
+            file_name, info={}, data_name="data"
+            )
+        self.dataset_intra.raw_data = raw_data  # Assign to dataset
+        self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
+        self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
+        self.dataset_intra.times = np.linspace(
+            0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+            raw_data.get_data().shape[1]
+            )
+        self.file_label_intra.setText(
+            f"Selected File: {basename(file_name)}"
+            )
+        self.dataset_intra.file_name = basename(file_name)
+        self.dataset_intra.file_path = dirname(file_name)
 
-            # Show channel selection and plot buttons for intracranial
-            self.btn_select_channel_intra.setEnabled(True)
-            self.channel_label_intra.setEnabled(True)
+        # Show channel selection and plot buttons for intracranial
+        self.btn_select_channel_intra.setEnabled(True)
+        self.channel_label_intra.setEnabled(True)
 
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load .mat file: {e}")
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"Failed to load .mat file: {e}")
 
 
 
@@ -107,9 +102,6 @@ def load_fif_file_int(
         file_name: str,
         ):
     """Load .fif file."""
-    # file_name, _ = QFileDialog.getOpenFileName(
-    # self, "Select FIF File", "", "FIF Files (*.fif);;All Files (*)"
-    # )
     try:
         raw_data = mne.io.read_raw_fif(file_name, preload=True)
 
@@ -134,18 +126,11 @@ def load_fif_file_int(
 
 def load_json_file(self, file_name: str):
     try:
-        # Load the .json file and extract streams information
-        # here write the logic to read json files, and create the dataframe
-        # to show users all the different streams so that they can pick the one
-        # they are interested in. Put all this in a separate function (dataframe creation)
         with open(file_name, 'r') as f:
             j = json.loads(f.read())        
         
         list_of_streamings = j['BrainSenseTimeDomain']
-        n_streamings = len(list_of_streamings)
-
         list_of_stim_streamings = j['BrainSenseLfp']
-        n_stim_streamings = len(list_of_stim_streamings)
 
         streamings_dict = defaultdict(lambda: defaultdict(dict))
             
@@ -154,15 +139,10 @@ def load_json_file(self, file_name: str):
         stream_count = 1
 
         for i_stream, dat in enumerate(list_of_streamings):
-            print(f'Processing streaming {i_stream + 1} / {n_streamings}')
-            print(f'Actual stream count: {stream_count}')
             first_packet_time = dat['FirstPacketDateTime']
-            print(f'first_packet_time: {first_packet_time}')
-            print(f'last stream time: {stream_times[-1]}')
 
             if first_packet_time != stream_times[-1] or i_stream == 0:
-            # new stream
-                #print('Entering new stream')
+                # new stream
                 streamings_dict[f'streaming_{stream_count}'][f'Channel_{dat["Channel"]}'] = {
                     'FirstPacketDateTime': first_packet_time,
                     'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
@@ -173,8 +153,7 @@ def load_json_file(self, file_name: str):
                 }
                 stream_count += 1
             else:
-            # other channel from same stream
-                #print('Entering same stream, different channel')
+                # other channel from same stream
                 streamings_dict[f'streaming_{stream_count - 1}'][f'Channel_{dat["Channel"]}'] = {
                     'FirstPacketDateTime': dat['FirstPacketDateTime'],
                     'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
@@ -189,17 +168,11 @@ def load_json_file(self, file_name: str):
         ends = []
         prev_streaming_id = None
         stream_count = -1
-        prev_stream_last_stim_ticks = None
+        #prev_stream_last_stim_ticks = None
 
         streamings_df = pd.DataFrame(columns=[
             'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
-            'LFP Recording duration', 
-            #'First TicksInMses LFP', 'Last TicksInMses LFP', 
-            # 'First TicksInMs stim', 'Last TicksInMs stim',
-            # 'LFP time between rec based on First Packet Time',
-            # 'LFP time between rec based on TicksInMses', 
-            # 'LFP time between rec based on TicksInMs stim',
-            # 'LFP Corrected for missing packets'
+            'LFP Recording duration'
             ])
         for streaming_id in streamings_dict.keys():
             stream_count += 1
@@ -208,20 +181,16 @@ def load_json_file(self, file_name: str):
             time_since_last_rec_ticks = None
             for channel in streamings_dict[streaming_id].keys():
                 channels.append(channel)
-                # check for missing packets and correct LFP data if necessary:
-                #print(f'Checking streaming {streaming_id}, channel {channel} for missing packets...')
-                #correct_lfp_data, corrected_or_not = functions.utils.check_and_correct_missings_in_lfp(streamings_dict[streaming_id][channel])
-                #streamings_dict[streaming_id][channel]['Corrected_TimeDomainData'] = correct_lfp_data
 
                 ticks_in_ms = streamings_dict[streaming_id][channel]['TicksInMses']
                 rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
                 rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
                 dt_str = streamings_dict[streaming_id][channel]['FirstPacketDateTime']
                 dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                
                 # compute rec_end_time using dt_obj + rec_duration: 
                 rec_end_time = dt_obj +  timedelta(minutes=rec_dur_min, seconds=rec_dur_sec, milliseconds=rec_dur_msec)
 
-                #time_since_last_rec = dt_obj - ends[-1] if ends else timedelta(0)
                 if ends and streaming_id == prev_streaming_id:
                     time_since_last_rec = timedelta(0)
                 elif ends:
@@ -230,6 +199,7 @@ def load_json_file(self, file_name: str):
                     time_since_last_rec = timedelta(0)
 
                 dt1_parsed = datetime.strptime(streamings_dict[streaming_id][channel]['FirstPacketDateTime'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                
                 # Simply output it in the same visual format as dt2
                 dt1_reformatted = dt1_parsed.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # trim to .XXX milliseconds
                 
@@ -239,34 +209,17 @@ def load_json_file(self, file_name: str):
                     time_since_last_rec_ticks = functions.utils.format_timedelta(timedelta(milliseconds=(ticks_in_ms[0] - (streamings_dict[prev_streaming_id][channel]['TicksInMses'][-1])) )) if ends and streaming_id != prev_streaming_id else '0 days, 0h, 0min, 0s, 0ms'
                 prev_streaming_id = streaming_id
                 # convert time_since_last_rec in milliseconds
-                time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
-                print(time_since_last_rec_ticks_ms)
-                time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
+                #time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
+                #time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
 
                 ends.append(rec_end_time)
 
             data = list_of_stim_streamings[stream_count]['LfpData']
-            ticks = np.array([d['TicksInMs'] for d in data])
+            #ticks = np.array([d['TicksInMs'] for d in data])
             right_mA = np.array([d['Right']['mA'] for d in data])
             left_mA = np.array([d['Left']['mA'] for d in data])
-            time_since_last_rec_ticks_stim = (ticks[0] - 250) - prev_stream_last_stim_ticks if prev_stream_last_stim_ticks is not None else 0
-            prev_stream_last_stim_ticks = ticks[-1]
-
-            # streamings_df = streamings_df.append({
-            # 'Streaming id': streaming_id,
-            # 'LFP Channels': channels,
-            # 'LFP Recording start': dt1_reformatted,
-            # 'LFP Recording end': rec_end_time,
-            # 'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
-            # # 'First TicksInMses LFP': ticks_in_ms[0],
-            # # 'Last TicksInMses LFP': ticks_in_ms[-1],
-            # # 'First TicksInMs stim': ticks[0],
-            # # 'Last TicksInMs stim': ticks[-1],
-            # # 'LFP time between rec based on First Packet Time': time_since_last_rec_first_packet_ms,
-            # # 'LFP time between rec based on TicksInMses': time_since_last_rec_ticks_ms,
-            # # 'LFP time between rec based on TicksInMs stim': time_since_last_rec_ticks_stim,
-            # # 'LFP Corrected for missing packets': corrected_or_not
-            # }, ignore_index=True)    
+            #time_since_last_rec_ticks_stim = (ticks[0] - 250) - prev_stream_last_stim_ticks if prev_stream_last_stim_ticks is not None else 0
+            #prev_stream_last_stim_ticks = ticks[-1] 
             new_row = pd.DataFrame([{
             'Streaming id': streaming_id,
             'LFP Channels': channels,
@@ -279,7 +232,7 @@ def load_json_file(self, file_name: str):
         BrainSenseRaws = {}
 
         for i, stream in enumerate(streamings_dict.keys()):
-            stream_dict = {}
+            #stream_dict = {}
             ch_names = []
             stim_ch_names = []
             data_arrays = []
@@ -289,11 +242,10 @@ def load_json_file(self, file_name: str):
                 ch_names.append(ch)
                 #data_arrays.append(ch_data)
                 data_arrays.append(np.array(ch_data)) #* 1e-6)
-                side = 'Left' if 'LEFT' in ch else 'Right'
+                #side = 'Left' if 'LEFT' in ch else 'Right'
                 stim_ch_names.append('STIM_' + ch)
 
-        # Because their sampling rate is different, resample them so that they match the LFP data length and crop if necessary (for small irregularities)
-                
+        # Because their sampling rate is different, resample them so that they match the LFP data length and crop if necessary (for small irregularities)        
             stim_sf = j['BrainSenseLfp'][i]['SampleRateInHz']  # == 2Hz
             left_stim = []
             right_stim = []
@@ -341,7 +293,7 @@ def load_json_file(self, file_name: str):
 
             info = mne.create_info(
             ch_names=ch_names + stim_ch_names,
-            sfreq=250,
+            sfreq=250,  # Percept sampling frequency is by default 250Hz
             ch_types=['eeg'] * len(ch_names) + ['eeg'] * len(stim_ch_names)
             )
 
@@ -349,12 +301,12 @@ def load_json_file(self, file_name: str):
                 data = np.array(data_arrays),
                 info = info
             )
-            #raw.plot(scalings='auto')
-            #raw.save(os.path.join(saving_path, saving_names[i]), overwrite=True)
             BrainSenseRaws[stream] = raw                
 
-        # Now BrainSenseRaws contains all streams as MNE Raw objects, but we still need to check for missing packets and correct them
-        # Loop through each stream and check for missing packets in each channel based on the function check_and_correct_missing_packets()
+        # Now BrainSenseRaws contains all streams as MNE Raw objects, but we 
+        # still need to check for missing packets and correct them
+        # Loop through each stream and check for missing packets in each channel 
+        # based on the function check_and_correct_missing_packets()
         BrainSenseRawsCorrected, streamings_df_corrected = functions.utils.check_and_correct_missing_packets(streamings_dict, BrainSenseRaws, streamings_df) 
 
         # Create a pop-up window to show the data frame and let user select the stream they want to load
@@ -369,10 +321,10 @@ def load_json_file(self, file_name: str):
         # There should be only one selected stream
         selected_stream_id = selected_streams[0]
 
-        # Assign the corresponding MNE Raw object to your dataset
+        # Assign the corresponding MNE Raw object to dataset
         self.dataset_intra.raw_data = BrainSenseRawsCorrected[selected_stream_id]
 
-        # Optionally, also store related info for convenience
+        # Store related info
         self.dataset_intra.sf = self.dataset_intra.raw_data.info['sfreq']
         self.dataset_intra.ch_names = self.dataset_intra.raw_data.ch_names
         self.dataset_intra.times = np.linspace(
@@ -391,23 +343,6 @@ def load_json_file(self, file_name: str):
         self.btn_select_channel_intra.setEnabled(True)
         self.channel_label_intra.setEnabled(True)
 
-        # self.dataset_intra.raw_data = raw_data  # Assign to dataset
-        # # self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
-        # # self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
-        # # self.dataset_intra.times = np.linspace(
-        # #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-        # #     raw_data.get_data().shape[1]
-        # #     )
-        # self.file_label_intra.setText(
-        #     f"Selected File: {basename(file_name)}"
-        #     )
-        # self.dataset_intra.file_name = basename(file_name)
-        # self.dataset_intra.file_path = dirname(file_name)
-
-        # # Show channel selection and plot buttons for intracranial
-        # self.btn_select_channel_intra.setEnabled(True)
-        # self.channel_label_intra.setEnabled(True)
-
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to load .json file: {e}")
 
@@ -415,6 +350,17 @@ def load_json_file(self, file_name: str):
 
 def load_ext_file(self):
     """Load external file. Supported file formats are .xdf, .fif, .poly5"""
+
+    # Add a warning if NoSync mode is ON:
+    if self.config['NoSync'] == True:
+        QMessageBox.warning(
+            self, "NoSync Mode Active", 
+            "You are loading an external file while NoSync mode is active. \n"
+            "Synchronization functionalities won't work properly. Please adjust " \
+            "NoSync to false in the config file and restart DBSsync."
+            )
+
+     # Open a QFileDialog to select an external file
     file_name, _ = QFileDialog.getOpenFileName(
         self, "Select External File", "", 
         "XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5)"
@@ -496,7 +442,6 @@ def load_poly5_file(
         self.channel_label_xdf.setEnabled(True)
         self.btn_select_channel_xdf.setEnabled(True)
         self.btn_select_ecg_channel.setEnabled(True)
-        #self.ecg_channel_label.setEnabled(True)
         
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to load .poly5 file: {e}")
@@ -550,8 +495,6 @@ def load_fif_file_ext(
 
 
 
-
-
 def find_sync_stream(
         self, 
         fpath_external: str, 
@@ -568,8 +511,6 @@ def find_sync_stream(
     return stream_id
 
 
-
-
 ##############################  OUTPUT FUNCTIONS  ##############################
 def select_saving_folder(self):
     """Open a dialog to select a folder for saving synchronized datasets."""
@@ -577,16 +518,11 @@ def select_saving_folder(self):
     folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
     self.folder_path = folder_path
     self.label_saving_folder.setText(f"Results will be saved in: {folder_path}")
-    
-    if folder_path:  # Check if the user selected a folder
-        print(f"Selected folder: {folder_path}")
-
 
 def save_datasets(self):
     saving_format_internal = self.config["SavingFormatInternal"]
 
     if self.config['NoSync'] == True:
-        print('true')
         if saving_format_internal == ".set":
             save_int_as_set(self)
         elif saving_format_internal == ".fif":
@@ -595,6 +531,7 @@ def save_datasets(self):
             save_int_as_pickle(self)
         elif saving_format_internal == ".mat":
             save_int_as_mat(self)
+
     else:
         # Check dataformat of external recording
         ext_extension = self.dataset_extra.file_name.split('.')[-1]
@@ -647,7 +584,7 @@ def save_int_as_set(self):
             )
 
     if self.folder_path is not None:
-        fname_lfp_out =join(self.folder_path, lfp_title)
+        fname_lfp_out = join(self.folder_path, lfp_title)
     else:
         fname_lfp_out = lfp_title
     
@@ -683,16 +620,11 @@ def save_int_as_fif(self):
         fname_lfp_out =join(self.folder_path, lfp_title)
     else:
         fname_lfp_out = lfp_title
-
-    # lfp_timescale = np.linspace(
-    #     0, self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-    #     self.dataset_intra.raw_data.get_data().shape[1]
-    #     )
     
     data_lfp = self.dataset_intra.raw_data.get_data()
     ch_names = self.dataset_intra.raw_data.info['ch_names']
 
-    # Create a new Info object with the correct sampling frequency
+    # Create a new Info object
     info = mne.create_info(
         ch_names=ch_names,
         sfreq=self.dataset_intra.sf,
@@ -702,9 +634,8 @@ def save_int_as_fif(self):
     # Create a new Raw object using the corrected info
     lfp_rec = mne.io.RawArray(data_lfp, info)
 
-    # Save the corrected Raw
+    # Save the Raw object to a .fif file
     lfp_rec.save(fname_lfp_out, overwrite=True)
-
 
     QMessageBox.information(
         self, "Saving",
@@ -789,7 +720,6 @@ def save_datasets_as_set(self):
     The function saves the synchronized datasets in the specified folder.
     If no folder is selected, it saves them in the current working directory.
     """
-    print("events from annotations extraction")
     events, _ = mne.events_from_annotations(self.dataset_extra.raw_data)
     inv_dic = {v: str(k) for k, v in _.items()}
 
@@ -942,7 +872,6 @@ def synchronize_datasets_as_pickles(self):
     # CREATE GLOBAL VARIABLES FOR EACH STREAM
     for stream_name, stream_data in streams.items():
         globals()[stream_name] = stream_data.data()
-        print(stream_name)
 
     # Convert self.dataset_extra.art_start into the xdf timescale from the BIP data
     art_start_0 = self.dataset_extra.art_start - 1
@@ -1065,7 +994,6 @@ def synchronize_datasets_as_one_pickle(self):
     # CREATE GLOBAL VARIABLES FOR EACH STREAM
     for stream_name, stream_data in streams.items():
         globals()[stream_name] = stream_data.data()
-        print(stream_name)
 
     # Convert self.dataset_extra.art_start into the xdf timescale from the BIP data
     art_start_0 = self.dataset_extra.art_start - 1
@@ -1148,7 +1076,6 @@ def synchronize_datasets_as_one_pickle(self):
         filepath = filename
     # Save the DataFrame to a pickle file
     final_df.to_pickle(filepath)
-    print(f"DataFrame {filename} saved as pickle to {filepath}")
     QMessageBox.information(
         self, "Synchronization", 
         "Synchronization done. Everything saved as one .pickle file"
@@ -1156,7 +1083,6 @@ def synchronize_datasets_as_one_pickle(self):
 
 def synchronize_datasets_as_mat(self):
     """
-    MIGHT BE OUT OF DATE
     This function synchronizes intracranial and external datasets,
     crops them so that they start 1 second before the first artifact,
     and saves them as two separate .mat files.
@@ -1166,14 +1092,14 @@ def synchronize_datasets_as_mat(self):
     If no folder is selected, they are saved in the current working directory.
     """
     index_start_LFP = (self.dataset_intra.art_start - 1) * self.dataset_intra.sf
-    LFP_array = self.dataset_intra.raw_data.get_data()
+    LFP_array = self.dataset_intra.synced_data.get_data()
     LFP_cropped = LFP_array[:, int(index_start_LFP) :].T
 
     ## External ##
     # Crop beginning of external recordings 1s before first artifact:
     time_start_external = (self.dataset_extra.art_start) - 1
     index_start_external = time_start_external * self.dataset_extra.sf
-    external_file = self.dataset_extra.raw_data.get_data()
+    external_file = self.dataset_extra.synced_data.get_data()
     external_cropped = external_file[:, int(index_start_external) :].T
 
     # Check which recording is the longest,
@@ -1265,7 +1191,7 @@ def write_set(
     ch_names = raw.info["ch_names"]
     chanlocs = fromarrays([ch_names], names=["labels"])
 
-    # --- Handle events safely ---
+    # Handle events
     if hasattr(raw, "annotations") and len(raw.annotations) > 0:
         if annotations_onset is None:
             annotations_onset = 0.0  # default if missing
@@ -1278,7 +1204,7 @@ def write_set(
         # Create empty structured array if no annotations
         events = fromarrays([[], [], []], names=["type", "latency", "duration"])
 
-    # --- Prepare EEGLAB structure ---
+    # Prepare EEGLAB-like structure
     EEG = dict(
         data=data,
         setname=fname,
@@ -1295,38 +1221,8 @@ def write_set(
         icaweights=[],
     )
 
-    # --- Save .set file ---
+    # Save .set file
     savemat(fname, {"EEG": EEG}, appendmat=False)
-
-# def write_set(
-#         fname: str, 
-#         raw: mne.io.BaseRaw, 
-#         annotations_onset: float, 
-#         fs: float, 
-#         times: np.ndarray
-#         ):
-#     """Export synchronized recordings to EEGLAB .set files."""
-#     data = raw.get_data()
-#     ch_names = raw.info["ch_names"]
-#     chanlocs = fromarrays([ch_names], names=["labels"])
-#     events = fromarrays([raw.annotations.description,
-#                          annotations_onset * fs + 1,
-#                          raw.annotations.duration * fs],
-#                         names=["type", "latency", "duration"])
-#     savemat(fname, dict(EEG=dict(data=data,
-#                                  setname=fname,
-#                                  nbchan=data.shape[0],
-#                                  pnts=data.shape[1],
-#                                  trials=1,
-#                                  srate=fs,
-#                                  xmin=times[0],
-#                                  xmax=times[-1],
-#                                  chanlocs=chanlocs,
-#                                  event=events,
-#                                  icawinv=[],
-#                                  icasphere=[],
-#                                  icaweights=[])),
-#             appendmat=False)
 
 
 def save_datasets_as_fif(self):
@@ -1402,19 +1298,19 @@ def save_datasets_as_fif(self):
         fname_external_out = external_title
         fname_lfp_out = lfp_title
 
-    TMSi_rec_offset_annotations_onset = TMSi_rec_offset.annotations.onset - new_start_external
-    lfp_rec_offset_annotations_onset= lfp_rec_offset.annotations.onset - new_start_intracranial
+    # TMSi_rec_offset_annotations_onset = TMSi_rec_offset.annotations.onset - new_start_external
+    # lfp_rec_offset_annotations_onset= lfp_rec_offset.annotations.onset - new_start_intracranial
     
-    lfp_timescale = np.linspace(
-        0, self.dataset_intra.synced_data.get_data().shape[1]/lfp_sf, 
-        self.dataset_intra.synced_data.get_data().shape[1]
-        )
+    # lfp_timescale = np.linspace(
+    #     0, self.dataset_intra.synced_data.get_data().shape[1]/lfp_sf, 
+    #     self.dataset_intra.synced_data.get_data().shape[1]
+    #     )
     
     TMSi_rec_offset.save(fname_external_out, overwrite=True)
     
     data_lfp = lfp_rec_offset.get_data()
     ch_names = lfp_rec_offset.info['ch_names']
-    ch_types = lfp_rec_offset.get_channel_types()
+    # ch_types = lfp_rec_offset.get_channel_types()
 
     # Create a new Info object with the correct sampling frequency
     info = mne.create_info(

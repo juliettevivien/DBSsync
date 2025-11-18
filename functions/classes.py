@@ -1,12 +1,11 @@
 """
-This module contains the classes used in the main applications:
+This module contains the classes used in the main application:
 - DataSet: A class to hold the data and metadata for the application.
 - Button: A custom QPushButton with a specific style.
 - Toolbar: A custom NavigationToolbar for matplotlib with a specific style.
-- PlotWindow: A QWidget that displays SVD components and allows user input for 'k'.
+- PlotWindow: A QWidget that displays SVD components for ECG cleaning and allows user input for 'k'.
 
 """
-
 
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -72,10 +71,6 @@ class Button(QPushButton):
 class Toolbar(NavigationToolbar):
     def __init__(self, canvas, parent=None):
         super().__init__(canvas, parent)
-        
-        # Optional: make toolbar not take up too much vertical space
-        #self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        
         # Apply smaller styling
         self.setStyleSheet("""
             QToolBar {

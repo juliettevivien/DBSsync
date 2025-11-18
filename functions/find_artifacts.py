@@ -14,9 +14,7 @@ The functions include:
 - `manual_selection_external`: Allows manual selection of artifacts in external recordings.
 - `detect_artifacts_intra`: Automatically detects artifacts in intracranial recordings.
 - `manual_selection_intra`: Allows manual selection of artifacts in intracranial recordings.
-
 """
-
 
 import numpy as np
 import scipy
@@ -26,8 +24,6 @@ from functions.plotting import (
     plot_scatter_channel_intra, 
     plot_scatter_channel_external
     )
-
-
 
 
 def detect_artifacts_external(self):
@@ -74,24 +70,15 @@ def find_external_sync_artifact(
         - times: np.ndarray, timescale of the signal
     Returns:
         - art_time_BIP: the timestamp where the artifact starts in external recording (in seconds)
-
-
-    To be properly detected in external channel, artifacts have to look 
-    like a downward deflection (they are more negative than positive). 
-    If for some reason the data recorder picks up the artifact as an upward 
-    deflection instead, then the signal is automatically inverted before detecting 
-    artifacts.
     """
     # check polarity of artifacts before detection:
     if abs(max(data[:-1000])) > abs(min(data[:-1000])):
-        print("external signal is reversed")
         data = data * -1
-        print("invertion undone")
 
     # find indexes of artifacts
-    # the external sync artifact is a sharp downward deflexion repeated at a high
+    # the external sync artifact is a sharp deflection repeated at a high
     # frequency (stimulation frequency). Therefore, the artifact is detected when
-    # the signal is below the threshold, and when the signal is lower than the
+    # the signal is crossing the threshold, and when the signal is lower than the
     # previous and next sample (first peak of the artifact).
     start_index = 0
     art_time_BIP = None

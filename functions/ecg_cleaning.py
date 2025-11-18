@@ -3,23 +3,26 @@ This module contains functions for cleaning ECG data using various methods as
 described in Stam et al., 2023.
 
 There are three main methods implemented:
-1. Interpolation Method: This method uses simple interpolation to remove artifacts
+1. Interpolation Method: This method uses simple linear interpolation to remove artifacts
     from the ECG signal, i.e. linearly interpolated over the R-peaks found.
 2. Template Subtraction Method: This method creates a QRS template based on the 
     R-peaks found and subtracts it from the ECG signal, using a linear fit to adjust
     the template to the raw data.
 3. Singular Value Decomposition (SVD) Method: This method uses SVD to decompose 
-    the raw contaminated signal into components, allowing for the removal of noise 
-    and artifacts by selecting the most significant components.
+    the raw contaminated signal into components, allowing for the removal of 
+    artifacts by selecting the most significant components.
 
 The detection of R-peaks is done using either only the LFP channel or an
-addidtional external ECG channel synchronized with the LFP channel. 
+additional external ECG channel synchronized with the LFP channel. 
 The R-peaks are detected with the function scipy.signal.find_peaks, with
 a threshold-based at 95th percentile of the signal amplitude, and a minimum
 distance of 500 ms between peaks. The polarity of the R-peaks is determined
 by comparing the mean amplitude of the detected peaks in both orientations
 (positive and negative). The orientation with the higher mean absolute amplitude
 is chosen as the orientation of the QRS complexes.
+There is the possibility to manually override some parameters for R-peak detection,
+such as the polarity, start and end times for cleaning, periods to exclude peaks from,
+and the detection threshold. 
 
 Reference paper:
 Stam M.J., van Wijk B.C.M., Sharma P., Beudel M., Piña-Fuentes D.A., 
@@ -48,7 +51,6 @@ from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit
 import numpy as np
 import scipy
 import scipy.signal
-#from scipy.signal import find_peaks
 import mne
 import ast 
 
@@ -57,13 +59,13 @@ from functions.classes import PlotWindow
 
 
 def manual_override(self):
-    # --- Create dialog ---
+    # Create dialog box for manual parameter input
     dialog = QDialog()
     dialog.setWindowTitle("Set R-peak Detection Parameters")
 
     layout = QVBoxLayout()
 
-    # --- Combo box for polarity ---
+    # Create combo box for polarity selection
     polarity_layout = QHBoxLayout()
     polarity_label = QLabel("R-peak polarity (LFP):")
     combo_polarity = QComboBox()
@@ -73,7 +75,7 @@ def manual_override(self):
     polarity_layout.addWidget(combo_polarity)
     layout.addLayout(polarity_layout)
 
-    # --- Line edits for start/end cleaning times ---
+    # Line edits to adapt start/end cleaning times (avoid stimulation pulses)
     start_layout = QHBoxLayout()
     start_label = QLabel("Start cleaning time (s):")
     start_edit = QLineEdit()
@@ -81,7 +83,6 @@ def manual_override(self):
     start_layout.addWidget(start_label)
     start_layout.addWidget(start_edit)
     layout.addLayout(start_layout)
-
     end_layout = QHBoxLayout()
     end_label = QLabel("End cleaning time (s):")
     end_edit = QLineEdit()
@@ -90,7 +91,7 @@ def manual_override(self):
     end_layout.addWidget(end_edit)
     layout.addLayout(end_layout)
 
-    # --- Line edit for periods to exclude peaks from ---
+    # Line edit for periods to exclude peaks from (avoid strong artifacts)
     exclusion_layout = QHBoxLayout()
     exclusion_label = QLabel("Exclusion period (s) as tuples:")
     exclusion_edit = QLineEdit()
@@ -99,6 +100,7 @@ def manual_override(self):
     exclusion_layout.addWidget(exclusion_edit)
     layout.addLayout(exclusion_layout)
 
+    # Combo box for R-peak detection threshold. Default to 95%
     threshold_layout = QHBoxLayout()
     threshold_label = QLabel("R-peak detection threshold (%):")
     combo_r_peak_threshold = QComboBox()
@@ -108,7 +110,7 @@ def manual_override(self):
     threshold_layout.addWidget(combo_r_peak_threshold) 
     layout.addLayout(threshold_layout)
 
-    # --- OK / Cancel buttons ---
+    # OK / Cancel buttons
     button_layout = QHBoxLayout()
     ok_button = QPushButton("OK")
     cancel_button = QPushButton("Cancel")
@@ -118,7 +120,7 @@ def manual_override(self):
 
     dialog.setLayout(layout)
 
-    # --- Button connections ---
+    # Button connections
     def on_ok():
         try:
             r_peak_polarity_lfp = combo_polarity.currentText()
@@ -148,7 +150,7 @@ def manual_override(self):
             else:
                 exclusion_periods = None
 
-            # store as instance attributes or process immediately
+            # store as instance attributes for later use
             self.r_peak_polarity_lfp = r_peak_polarity_lfp
             self.start_cleaning_time = start_cleaning_time
             self.end_cleaning_time = end_cleaning_time
@@ -162,7 +164,7 @@ def manual_override(self):
     ok_button.clicked.connect(on_ok)
     cancel_button.clicked.connect(dialog.reject)
 
-    # --- Show dialog ---
+    # Show dialog
     if dialog.exec_() == QDialog.Accepted:
         print(f"Polarity: {self.r_peak_polarity_lfp}, "
             f"Start: {self.start_cleaning_time}, End: {self.end_cleaning_time}, "
@@ -170,10 +172,10 @@ def manual_override(self):
     else:
         return  # User canceled
 
-##################################################################
+###############################################################################
 
     #######################################################################
-    #########                 FINDING THE R-PEAKS                 #########
+    #########                   FINDING R-PEAKS                   #########
     #######################################################################   
 
 def find_r_peaks(self):
@@ -203,11 +205,13 @@ def find_r_peaks(self):
             )
 
     if self.dataset_extra.selected_channel_name_ecg is not None:
+    # an external ECG channel was selected and will therefore be used for R-peak detection
         # Use external ECG channel to find R-peaks
         final_peaks, polarity, mean_epoch = find_r_peaks_based_on_ext_ecg(
             self, full_data, times, self.detection_threshold,
             window_artifact = [-0.5, 0.5]
             )
+        # Add a message window to inform the user about the result of the peak detection:
         QMessageBox.information(
             self,
             "R-Peak Detection",
@@ -215,12 +219,12 @@ def find_r_peaks(self):
             QMessageBox.Ok
         )    
     else:
+    # Use only LFP channel to find R-peaks
         final_peaks, polarity, mean_epoch = find_r_peaks_in_lfp_channel(
             self, full_data, times, self.detection_threshold,
             window = [-0.5, 0.5]
             ) 
-        
-        # Add a message window to inform the user about the method and threshold used:
+        # Add a message window to inform the user about the result of the peak detection:
         QMessageBox.information(
             self,
             "R-Peak Detection",
@@ -230,30 +234,33 @@ def find_r_peaks(self):
 
     # Check if peak detection was successful
     if len(final_peaks) == 0:
-        print("Peak detection failed - no peaks found")
         # Disable cleaning buttons since we don't have valid peaks
         self.btn_start_ecg_cleaning_interpolation.setEnabled(False)
         self.btn_start_ecg_cleaning_template_sub.setEnabled(False)
         self.btn_start_ecg_cleaning_svd.setEnabled(False)
+        QMessageBox.warning(
+            self,
+            "R-Peak Detection",
+            f"R-peak detection failed, no peaks were detected",
+            QMessageBox.Ok
+        )
         return
         
-    self.final_peaks = final_peaks
-    self.polarity = polarity
-    self.mean_epoch = mean_epoch
+    else:
+        self.final_peaks = final_peaks
+        self.polarity = polarity
+        self.mean_epoch = mean_epoch
 
-    self.btn_start_ecg_cleaning_interpolation.setEnabled(True)
-    self.btn_start_ecg_cleaning_template_sub.setEnabled(True)
-    self.btn_start_ecg_cleaning_svd.setEnabled(True)
+        self.btn_start_ecg_cleaning_interpolation.setEnabled(True)
+        self.btn_start_ecg_cleaning_template_sub.setEnabled(True)
+        self.btn_start_ecg_cleaning_svd.setEnabled(True)
 
-    # reset params after use 
-    self.r_peak_polarity_lfp = None
-    self.start_cleaning_time = None
-    self.end_cleaning_time = None
-    self.exclusion_periods = None
-    self.detection_threshold = 95  # reset to default
-
-    print("R-peaks found and stored in the main window.")
-
+        # reset params to default after use to be able to process left and right channels differently
+        self.r_peak_polarity_lfp = None
+        self.start_cleaning_time = None
+        self.end_cleaning_time = None
+        self.exclusion_periods = None
+        self.detection_threshold = 95  # reset to default
 
 
 def find_r_peaks_based_on_ext_ecg(
@@ -276,11 +283,8 @@ def find_r_peaks_based_on_ext_ecg(
     peaks were averaged and the peaks with the highest mean
     determined the orientation of the QRS complexes.
     """
+    # searches for stimulation pulses to avoid them during R-peak detection
     last_peak_start, first_peak_end = get_start_end_times(full_data, times)
-    
-    # print(f"Debug ext ECG: LFP data length: {len(full_data)}")
-    # print(f"Debug ext ECG: LFP time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
-    # print(f"Debug ext ECG: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
 
     # Override with user-defined times if provided
     if self.start_cleaning_time is not None:
@@ -288,20 +292,17 @@ def find_r_peaks_based_on_ext_ecg(
     if self.end_cleaning_time is not None:
         first_peak_end = self.end_cleaning_time
 
-    # Validate crop range (same as in find_r_peaks_in_lfp_channel)
+    # Validate crop range and correct to default if invalid
     if last_peak_start >= first_peak_end:
-        print(f"Warning ext ECG: Invalid crop range detected! Start ({last_peak_start:.2f}) >= End ({first_peak_end:.2f})")
-        print("Using full signal instead of cropping...")
         # Use a reasonable portion of the signal (skip first and last 10 seconds)
         last_peak_start = max(10.0, times[0] + 10.0)
         first_peak_end = min(times[-1] - 10.0, times[-1] - 10.0)
-        print(f"Debug ext ECG: Adjusted crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
     
     data_extra = self.dataset_extra.synced_data.get_data()[
         self.dataset_extra.selected_channel_index_ecg
         ]
 
-    # Apply 0.1 Hz-100Hz band-pass filter to ECG data
+    # Apply 0.05 Hz-60Hz band-pass filter to ECG data. The low-pass can be changed in the config file.
     b, a = scipy.signal.butter(1, 0.05, "highpass")
     detrended_data = scipy.signal.filtfilt(b, a, data_extra)
 
@@ -348,9 +349,7 @@ def find_r_peaks_based_on_ext_ecg(
         polarity_ecg = 'Negative'
     
     # Check if any peaks were detected in the external ECG
-    if len(chosen_peaks) == 0:
-        print("No peaks detected in external ECG! Trying more lenient parameters...")
-        
+    if len(chosen_peaks) == 0:        
         # Try with lower thresholds
         for fallback_threshold in [90, 85, 80, 75, 70]:
             threshold_fallback = np.percentile(ecg_z, fallback_threshold)
@@ -362,12 +361,9 @@ def find_r_peaks_based_on_ext_ecg(
                 -ecg_z, height=threshold_fallback, distance=min_distance_samples
             )
             
-            print(f" Trying {fallback_threshold}% threshold: {len(peaks_pos_fb)} pos, {len(peaks_neg_fb)} neg peaks")
-            
             if len(peaks_pos_fb) > 0 or len(peaks_neg_fb) > 0:
                 chosen_peaks = peaks_pos_fb if len(peaks_pos_fb) >= len(peaks_neg_fb) else peaks_neg_fb
                 polarity_ecg = 'Positive' if len(peaks_pos_fb) >= len(peaks_neg_fb) else 'Negative'
-                print(f"  Success with {fallback_threshold}% threshold: {len(chosen_peaks)} peaks found ({polarity_ecg})")
                 break
         
         # If still no peaks found
@@ -383,10 +379,8 @@ def find_r_peaks_based_on_ext_ecg(
                 QMessageBox.Ok
             )
             return np.array([]), 'Unknown', np.array([])
-    
-    print(f"External ECG: Found {len(chosen_peaks)} peaks with {polarity_ecg} polarity")     
 
-    # Plot the detected peaks ####
+    # Plot detected R-peaks ####
     self.canvas_detected_peaks.setEnabled(True)
     self.toolbar_detected_peaks.setEnabled(True)
     self.ax_detected_peaks.clear()
@@ -401,7 +395,8 @@ def find_r_peaks_based_on_ext_ecg(
     # Convert times to LFP sample indices
     r_peaks_lfp_idx = np.round(r_peak_times_sec * self.dataset_intra.sf).astype(int)
 
-    window_around_peaks = 20  # ±20 LFP samples
+    # Look for R-peaks in LFP channel based on predetermined timestamps:
+    window_around_peaks = 20  # ±20 LFP samples = 80ms at 250 Hz
     max_peaks = []
     min_peaks = []
 
@@ -421,7 +416,6 @@ def find_r_peaks_based_on_ext_ecg(
     # Override polarity if user specified
     if self.r_peak_polarity_lfp is not None:
         polarity = self.r_peak_polarity_lfp
-        print(f"Overriding detected polarity to user-specified: {polarity}")
         if polarity == 'Up':
             mean_abs_max = 2
             mean_abs_min = 1
@@ -476,8 +470,6 @@ def find_r_peaks_based_on_ext_ecg(
             if not any(start <= (p / self.dataset_intra.sf) <= end for start, end in self.exclusion_periods)
         ]
 
-    print(f"LFP peaks: {initial_lfp_count} total, {len(lfp_peak_indices)} after time filtering")
-    
     # Check if we have sufficient LFP peaks
     if len(lfp_peak_indices) == 0:
         print("No LFP peaks remain after time filtering!")
@@ -490,7 +482,7 @@ def find_r_peaks_based_on_ext_ecg(
         )
         return np.array([]), polarity, np.array([])
 
-    # Plot the detected peaks
+    # Plot detected R-peaks
     self.ax_detected_peaks.plot(times, full_data, label='Raw LFP', color='black')
     self.ax_detected_peaks.plot(
         np.array(times)[lfp_peak_indices], 
@@ -500,11 +492,10 @@ def find_r_peaks_based_on_ext_ecg(
     self.ax_detected_peaks.legend()
     self.canvas_detected_peaks.draw()
 
-    # Estimate HR
+    # Estimate HR and display it in label
     peak_intervals = np.diff(lfp_peak_indices) / self.dataset_intra.sf  # Convert to seconds
     hr = 60 / np.mean(peak_intervals) if len(peak_intervals) > 0 else 0
     self.label_heart_rate_lfp.setText(f'Heart rate: {hr:.1f} bpm')
-    print(f"Estimated heart rate from LFP: {hr:.1f} bpm")
 
     # Define epoch window
     sf_lfp = self.dataset_intra.sf
@@ -553,8 +544,6 @@ def find_r_peaks_based_on_ext_ecg(
             QMessageBox.Ok
         )
         return np.array([]), polarity, np.array([])
-    
-    print(f"LFP: Created template from {len(epochs)} valid epochs")
 
     # Plot the detected ECG epochs
     self.canvas_ecg_artifact.setEnabled(True)
@@ -592,12 +581,25 @@ def find_r_peaks_in_lfp_channel(
         detection_threshold: int, 
         window = [-0.5, 0.5]
         ):
+    """ 
+    The LFP signal itself is used to find the R-peaks. It is cropped in 1s 
+    segments and the function findpeaks was used to search for R-peaks in each segment.
+    This is repeated with signal multiplied by -1 to account for negative QRS complexes.
+    The polarity for which more peaks were detected is chosen as the orientation
+    of the QRS complexes in LFP channel and a second-pass detection is performed:
+    epochs are created around each detected R-peak (-0.5 - +0.5s around) and averaged
+    to generate a first QRS template.
+    Template correlation is used to refine the R-peak locations by searching
+    for the local maxima within each epoch that has the highest correlation
+    with the mean QRS template. These local maxima are used to create a better
+    QRS template by averaging epochs around these new R-peak locations. 
+    Template correlation is applied a second time using this improved QRS template
+    to finalize R-peak locations.
+    """
     sf_lfp = round(self.dataset_intra.sf)
 
-
-
+    # Define period to look for peaks (avoid stimulation pulses if present):
     if self.config['NoSync'] == True:
-        print("NoSync mode: Using full data without cropping.")
         start_idx = 0
         end_idx = len(full_data)
         # Override with user-defined times if provided
@@ -616,19 +618,13 @@ def find_r_peaks_in_lfp_channel(
             last_peak_start = self.start_cleaning_time
         if self.end_cleaning_time is not None:
             first_peak_end = self.end_cleaning_time
-        # print(f"Debug: Data length: {len(full_data)}, Sampling frequency: {sf_lfp}")
-        # print(f"Debug: Time range: {times[0]:.2f} to {times[-1]:.2f} seconds")
-        # print(f"Debug: Crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
-        
+
         # Validate crop range
         if last_peak_start >= first_peak_end:
-            print(f"Warning: Invalid crop range detected! Start ({last_peak_start:.2f}) >= End ({first_peak_end:.2f})")
-            print("Using full signal instead of cropping...")
             # Use a reasonable portion of the signal (skip first and last 10 seconds)
             last_peak_start = max(10.0, times[0] + 10.0)
             first_peak_end = min(times[-1] - 10.0, times[-1] - 10.0)
-            # print(f"Debug: Adjusted crop range: {last_peak_start:.2f} to {first_peak_end:.2f} seconds")
-        
+
         # Calculate crop indices and validate
         start_idx = int(last_peak_start * sf_lfp)
         end_idx = int(first_peak_end * sf_lfp)
@@ -641,26 +637,17 @@ def find_r_peaks_in_lfp_channel(
     
     # Check if cropped data is valid
     if len(cropped_data) == 0:
-        print("Error: Cropped data is empty! Using full signal...")
         cropped_data = full_data
         last_peak_start = times[0]
         first_peak_end = times[-1]
-    
-    print(f"Debug: Cropped data length: {len(cropped_data)}, Range: {np.min(cropped_data):.4f} to {np.max(cropped_data):.4f}")
-    print(f"Debug: Data std: {np.std(cropped_data):.4f}, Detection threshold: {detection_threshold}%")
-    
-    #beginning_part = full_data[:int(last_peak_start * sf_lfp)]
-    #end_part = full_data[int(first_peak_end * sf_lfp):]
 
-    ecg = {'proc': {}}
+    #ecg = {'proc': {}}
     ns = len(cropped_data)  # Number of samples in the cropped data
     
     # Segment the signal into overlapping windows
     dwindow = int(round(sf_lfp))  # 1s window
     dmove = sf_lfp  # 1s step
     n_segments = (ns - dwindow) // dmove + 1
-    
-    #print(f"Debug: Processing {n_segments} segments of {dwindow} samples each")
     
     detected_peaks_positive = []  # Store peak indices in the original timescale of the cropped_data
     x = np.array(
@@ -675,8 +662,7 @@ def find_r_peaks_in_lfp_channel(
         # Skip segment if it contains any NaNs
         if np.isnan(segment).any():
             continue
-        
-        # Try different thresholds if 90th percentile fails
+    
         for threshold_pct in [80, 70, 60, 50]:
             peaks, _ = scipy.signal.find_peaks(
                 segment, height=np.percentile(segment, threshold_pct), distance=sf_lfp//3
@@ -713,8 +699,6 @@ def find_r_peaks_in_lfp_channel(
         detected_peaks_negative.extend(real_peaks)
 
     # Find which set of peaks has more elements
-    print(f"Debug: Found {len(detected_peaks_positive)} positive peaks and {len(detected_peaks_negative)} negative peaks")
-    
     if len(detected_peaks_positive) >= len(detected_peaks_negative):
         detected_peaks = detected_peaks_positive
         polarity = 'Up'
@@ -734,11 +718,9 @@ def find_r_peaks_in_lfp_channel(
     detected_peaks = np.array(detected_peaks)
     
     # Check if any peaks were detected
-    if len(detected_peaks) == 0:
-        print("No peaks detected with segmented approach! Trying fallback method...")
-        
+    if len(detected_peaks) == 0:        
         # Try the simpler fallback method
-        detected_peaks, polarity = simple_peak_detection_fallback(cropped_data, sf_lfp, detection_threshold)
+        detected_peaks, polarity = simple_peak_detection_fallback(cropped_data, sf_lfp)
         
         if len(detected_peaks) == 0:
             print("No peaks detected with any method!")
@@ -755,13 +737,10 @@ def find_r_peaks_in_lfp_channel(
             # Return empty arrays to prevent crashes
             return np.array([]), 'Unknown', np.array([])
 
-    print(f"Detected {len(detected_peaks)} peaks with {polarity} polarity")
-
     # Define epoch window
     pre_samples = int(abs(window[0]) * sf_lfp)
     post_samples = int(window[1] * sf_lfp)
-    epoch_length = pre_samples + post_samples  # Total length of each epoch
-    #time = np.linspace(window[0], window[1], epoch_length)  # Time in seconds
+    #epoch_length = pre_samples + post_samples  # Total length of each epoch
 
     epochs = []  # Store extracted heartbeats
     for peak in detected_peaks:
@@ -802,8 +781,6 @@ def find_r_peaks_in_lfp_channel(
             QMessageBox.Ok
         )
         return np.array([]), polarity, np.array([])
-
-    print(f"Created template from {len(epochs)} valid epochs")
 
     # Temporal correlation for ECG detection
     # adapt in case NaNs are present:
@@ -850,10 +827,6 @@ def find_r_peaks_in_lfp_channel(
     self.toolbar_detected_peaks.setEnabled(True)
     self.ax_detected_peaks.clear()
     self.ax_detected_peaks.set_title('Detected Peaks')
-    # self.ax_detected_peaks.plot(full_data, label='Raw Channel')
-    # self.ax_detected_peaks.plot(
-    #     final_peaks, full_data[final_peaks], 'ro', label='Detected Peaks'
-    #     )
     self.ax_detected_peaks.plot(times, full_data, label='Raw LFP', color='black')
     self.ax_detected_peaks.plot(
         np.array(times)[final_peaks], 
@@ -878,9 +851,6 @@ def find_r_peaks_in_lfp_channel(
     #######################################################################
     #########                  INTERPOLATION METHOD               #########
     #######################################################################        
-
-
-
 def start_ecg_cleaning_interpolation(self):
     self.ax_ecg_clean.clear()
     self.ax_ecg_artifact.clear()
@@ -891,8 +861,6 @@ def start_ecg_cleaning_interpolation(self):
 
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to clean ECG: {e}")
-
-
 
 def clean_ecg_interpolation(self):
     if self.config['NoSync'] == True:
@@ -930,11 +898,8 @@ def clean_ecg_interpolation(self):
 
     if self.dataset_intra.selected_channel_index_ecg == 0:
         self.dataset_intra.cleaned_ecg_left = clean_data
-        print("Left channel cleaned")
-
     elif self.dataset_intra.selected_channel_index_ecg == 1:
         self.dataset_intra.cleaned_ecg_right = clean_data
-        print("Right channel cleaned")
 
     # plot an overlap of the raw and cleaned data
     self.canvas_ecg_clean.setEnabled(True)
@@ -986,8 +951,6 @@ def clean_ecg_interpolation(self):
     #######################################################################
     #########              TEMPLATE SUBSTRACTION METHOD           #########
     #######################################################################      
-
-
 def start_ecg_cleaning_template_sub(self):
     self.ax_ecg_clean.clear()
     self.ax_ecg_artifact.clear()
@@ -1064,7 +1027,6 @@ def clean_ecg_template_sub(self):
     self.canvas_ecg_artifact.draw()
 
     ####################################################################
-    #artifact_data = np.copy(full_data)
     pre_samples = int(abs(window[0]) * self.dataset_intra.sf)
     post_samples = int(window[1] * self.dataset_intra.sf)
 
@@ -1088,17 +1050,11 @@ def clean_ecg_template_sub(self):
         raw_epoch = full_data[start:end]
         assert len(raw_epoch) == len(complex_qrs_template), "Raw epoch length does not match complex QRS template length"
         clean_data[start:end] -= complex_qrs_template
-        #artifact_data[start:end] = complex_qrs_template
-
-    #artifact_data_full = artifact_data    
 
     if self.dataset_intra.selected_channel_index_ecg == 0:
         self.dataset_intra.cleaned_ecg_left = clean_data
-        print("Left channel cleaned")
-
     elif self.dataset_intra.selected_channel_index_ecg == 1:
         self.dataset_intra.cleaned_ecg_right = clean_data
-        print("Right channel cleaned")
 
     # plot an overlap of the raw and cleaned data
     self.canvas_ecg_clean.setEnabled(True)
@@ -1107,7 +1063,6 @@ def clean_ecg_template_sub(self):
     self.ax_ecg_clean.set_title("Cleaned ECG Signal")
     self.ax_ecg_clean.plot(times, full_data, label='Raw data')
     self.ax_ecg_clean.plot(times, clean_data, label='Cleaned data')
-    #self.ax_ecg_clean.plot(times, artifact_data_full, label='Artifact data', color='red', alpha=0.5)
     self.ax_ecg_clean.set_xlabel("Time (s)")
     self.ax_ecg_clean.set_ylabel("Amplitude")
     self.ax_ecg_clean.legend()
@@ -1146,8 +1101,6 @@ def clean_ecg_template_sub(self):
 
     self.btn_confirm_cleaning.setEnabled(True)  # Enable the button after cleaning
 
-      
-
 
     #######################################################################
     #########          SINGULAR VALUE DECOMPOSITION METHOD        #########
@@ -1168,7 +1121,7 @@ def start_ecg_cleaning_svd(self):
 def clean_ecg_svd(self):
     """
     This function cleans the ECG signal using Singular Value Decomposition (SVD).
-    It extracts epochs around the R-peaks, performs SVD on these epochs,
+    It extracts QRS templates around the R-peaks, performs SVD on these epochs,
     and then reconstructs the signal using the first few singular values.
     The function opens a secondary plotting window to visualize the SVD results,
     so that the user can choose which components to keep to reconstruct the signal.
@@ -1208,13 +1161,14 @@ def clean_ecg_svd(self):
     self.plot_window.show()
 
 
-def simple_peak_detection_fallback(cropped_data, sf_lfp, detection_threshold):
+
+
+def simple_peak_detection_fallback(cropped_data, sf_lfp):
     """
-    Fallback method for peak detection using a simpler approach.
+    Fallback method for peak detection using a simpler approach in case detection 
+    with usual thresholds fails.
     This method applies peak detection directly to the entire signal.
     """
-    print("Trying simple fallback peak detection method...")
-    
     # Try peak detection on the entire signal with different parameters
     for height_pct in [90, 80, 70, 60, 50, 40]:
         for distance_factor in [2, 3, 4, 5]:  # Different distance constraints
@@ -1232,16 +1186,11 @@ def simple_peak_detection_fallback(cropped_data, sf_lfp, detection_threshold):
                 -cropped_data, height=height_neg, distance=distance
             )
             
-            print(f"  Trying threshold {height_pct}%, distance {distance}: {len(peaks_pos)} pos, {len(peaks_neg)} neg peaks")
-            
             # Return the first successful detection with reasonable number of peaks
             if len(peaks_pos) >= 3:  # At least 3 peaks for meaningful analysis
-                print(f"  Success with positive peaks: {len(peaks_pos)} peaks found")
                 return peaks_pos, 'Up'
             elif len(peaks_neg) >= 3:
-                print(f"  Success with negative peaks: {len(peaks_neg)} peaks found")
                 return peaks_neg, 'Down'
     
-    print("  Fallback method also failed to find peaks")
     return np.array([]), 'Unknown'
 
