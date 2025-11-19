@@ -15,7 +15,7 @@
     "SavingAllAsOne": false,
     "SavingFormatAllAsOne": ".pkl",
 
-    "NoSync": true,
+    "NoSync": false,
 
     "EcgLowpassFilter": 60.0
 }

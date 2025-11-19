@@ -46,7 +46,7 @@
                                     a recording session. It contains all the session's data and metadata.
                                     </li>
                                     <li>
-                                    The GUI is designed can also be used on files already preprocessed with the 
+                                    The GUI can also be used on files already preprocessed with the 
                                     <a href="https://github.com/neuromodulation/perceive" target="_blank" class="clickable-link">perceive</a> toolbox.
                                     This toolbox loads the .JSON file recovered from the clinician recording tablet after a recording session, 
                                     and generates <a href="bids.neuroimaging.io" target="_blank" class="clickable-link">BIDS-</a>inspired subject 
@@ -147,8 +147,8 @@
                             </ol>
                             <h5 id="figure1">Figure 1: Screenshot of the GUI's Home Page.</h5>
                             <img src="images/main-window.png" alt="Screenshot of the GUI's Home Page" class="gui-screenshot">
-                            <p class="img-legend">On the left side is the pannel 
-                                about the intracranial recording, on the right side is the pannel for the external 
+                            <p class="img-legend">On the left side is the panel 
+                                about the intracranial recording, on the right side is the panel for the external 
                                 recording. In this example, artifacts were selected automatically by DBSsync and 
                                 the selection is correct:
                                 <ul class="img-legend">
@@ -187,7 +187,7 @@
                                 In this example, artifacts were manually selected in the intracranial and external
                                 recordings. The timeshift is calculated as the difference between the last artifact
                                 in the intracranial data and the last artifact in the external data. In this example,
-                                the timeshift is 90ms, which means that the sampling frequency of the intracranial data 
+                                the timeshift is 24ms, which means that the sampling frequency of the intracranial data 
                                 should be corrected before saving.
                             </p><br><br>                         
                             
@@ -210,8 +210,8 @@
                             <h5 id="figure3">Figure 3: Screenshot of the GUI's Effective Sampling frequency window.</h5>
                             <img src="images/eff-sf-window.png" alt="Screenshot of the GUI's effective sampling frequency window" class="gui-screenshot">
                             <p class="img-legend">
-                                On the left side is the pannel about the intracranial recording, on the right 
-                                side is the pannel for the external recording. The signal of each channel is automatically 
+                                On the left side is the panel about the intracranial recording, on the right 
+                                side is the panel for the external recording. The signal of each channel is automatically 
                                 plotted as a scatter plot to facilitate manual selection of the first and last artifact in each channel.
                             </p><br>                         
                             <h5 id="figure4">Figure 4: Calculation of the effective sampling frequency of the intracranial signal.</h5>
@@ -221,24 +221,35 @@
                                 to the beginning of the last stimulation pulse in both channels. The first artifacts were also previously
                                 selected. The effective sampling frequency is calculated as the number of samples between the two artifacts
                                 in the intracranial signal divided by the time difference between the last and the first artifact in the external signal.
-                                In this example, the effective sampling frequency is 249.98721215438817Hz.
+                                In this example, the effective sampling frequency is 249.994403172935Hz.
                             </p><br><br>
 
                             <li id = "ecgcleaning">
                                 <h4><b>ECG Artifact Cleaning</b></h4>
-                                Optional: clean the ECG artifacts in the intracranial data (see <a href=#figure5>figure 5</a> below 
-                                for an overview of the ECG cleaning pipeline, and <a href=#figure6>figure 6</a> for an example of what
-                                the interface looks like).
-                                <h5 id="figure5">Figure 5: ECG cleaning pipeline.</h5>
-                                <img src="images/figure5.png" alt="Overview of the main steps to perform ECG artifact suppresion using DBSsync" class="ecg-pipeline">
-                                <br>                               
+                                Optional: clean ECG artifacts in the intracranial data.
+                                <h5 id="figure5">Figure 5: Screenshot of the GUI's ECG cleaning window.</h5>
+                                <img src="images/ecg-cleaning-window.png" alt="Screenshot showing the main steps performed in the GUI and the automatic plots displayed" class="gui-screenshot">
+                                <p class="img-legend">
+                                    In this example the ECG artifacts were detected in the intracranial data using an external ECG channel to help detection.
+                                </p>
+                                <ul class="img-legend">
+                                    <li>The first plot displays the detected R-peaks in both the external channel (light traces) and the intracranial channel (dark traces).</li>
+                                    <li>The second plot shows the average shape of the ECG artifact, reconstructed using 4 components from the singular value decomposition method.</li>
+                                    <li>The third plot shows an overlap of the raw and cleaned channel after applying SVD4 (SVD method using 4 components).</li>
+                                    <li>The fourth plot shows an overlap of the power spectrum from the raw and cleaned channels after applying SVD4.</li>
+                                </ul>
+                                <p class="img-legend">
+                                    The heart rate is also automatically computed and displayed in the ECG cleaning window.
+                                    <br>If the cleaning is satisfactory, you can click on "Confirm cleaning and keep channel".
+                                </p>   
+                                <br>                            
                                 To clean the ECG artifacts in the intracranial data, click on "ECG cleaning".
                                 In this window, an intracranial channel containing ECG artifacts can be select and plotted to
                                 assess the presence of ECG artifacts. A low-pass filter can be applied to the intracranial
                                 data to remove stimulation artifacts before applying the ECG cleaning algorithm.
                                 If available, a synchronized external ECG channel can also be selected to help for R-peaks detection.
                                 Click on "Detect R-peaks". Detected R-peaks are automatically plotted below, and the user can check if the detection is correct.
-                                If the detection is not correct, some parameters can be manually overridden before clicking on "Detect R-peaks" again:
+                                If the detection is not correct, some parameters can be manually overridden in the Manual Override section, before clicking on "Detect R-peaks" again:
                                 <ul>
                                     <li><b>R-peak polarity</b> If the polarity of R-peaks is wrongly detected in intracranial channel, update it manually.</li>
                                     <li><b>Start and end of detection:</b> DBSsync should avoid stimulation pulses periods when detecting R-peaks, 
@@ -279,21 +290,6 @@
                                     <li>the second plot shows an overlap of the raw and cleaned channels</li>
                                     <li>the third plot shows an overlap of the power spectrum from the raw and cleaned channels</li>
                                 </ul>     
-                                <h5 id="figure6">Figure 6: Screenshot of the GUI's ECG cleaning window.</h5>
-                                <img src="images/ecg-cleaning-window.png" alt="Screenshot showing the main steps performed in the GUI and the automatic plots displayed" class="gui-screenshot">
-                                <p class="img-legend">
-                                    In this example the ECG artifacts were detected in the intracranial data using an external ECG channel to help detection.
-                                </p>
-                                <ul class="img-legend">
-                                    <li>The first plot displays the detected R-peaks in both the external channel (light traces) and the intracranial channel (dark traces).</li>
-                                    <li>The second plot shows the average shape of the ECG artifact, reconstructed using 4 components from the singular value decomposition method.</li>
-                                    <li>The third plot shows an overlap of the raw and cleaned channel after applying SVD4 (SVD method using 4 components).</li>
-                                    <li>The fourth plot shows an overlap of the power spectrum from the raw and cleaned channels after applying SVD4.</li>
-                                </ul>
-                                <p class="img-legend">
-                                    The heart rate is also automatically computed and displayed in the ECG cleaning window.
-                                    <br>If the cleaning is satisfactory, you can click on "Confirm cleaning and keep channel".
-                                </p>
                             </li><br><br>  
 
                             <li id = "saving">

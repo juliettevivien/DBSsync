@@ -234,3 +234,31 @@ a[href="#figure1"]:hover, a[href="#figure2"]:hover, a[href="#figure3"]:hover, a[
 }
 
 
+@media print {
+    .logo-img,
+    .logo-dbssync {
+        display: block !important;
+        margin: 0 !important;        /* remove extra margins */
+        padding: 0 !important;
+        max-height: 100px !important;
+        height: auto !important;
+        max-width: 150px !important; /* or whatever limit you prefer */
+        width: auto !important;
+        object-fit: contain !important;
+    }
+}
+
+@media print {
+    section,
+    #installation,
+    #usage,
+    #examples,
+    #general-information,
+    #sync-protocol,
+    .gui-screenshot,
+    .ecg-pipeline,
+    .code-text {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
