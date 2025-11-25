@@ -345,6 +345,23 @@ def load_json_file(self, file_name: str):
                     # recalculate diff
                     diff = (start_time_next - 250) - end_time_current
                 print(f'Time gap between {selected_streams[i]} and {selected_streams[i + 1]}: {diff} ms')
+
+                # check that duration of second stream matches number of samples
+                # sometimes, packets have an irregular size, leading to a mismatch between expected duration and actual number of samples
+                # check if packet sizes are always either 62 or 63 samples
+                packet_sizes = streamings_dict[selected_streams[i + 1]][list(streamings_dict[selected_streams[i + 1]].keys())[0]]['GlobalPacketSizes']
+                # get sizes that are not 62 or 63
+                irregular_sizes = [size for size in packet_sizes if size not in [62, 63]]
+                # for size that are not 62 or 63, calculate the difference
+                if irregular_sizes:
+                    # assume they should be 62, sum up the "extra samples"
+                    # when packets have more samples than 62/63, it means that the recording 
+                    # device actually sent more samples, which should be taken into account 
+                    # when adding NaN values for concatenation
+                    total_extra_size = sum([size - 62 for size in irregular_sizes]) 
+                    print(f'Irregular packet sizes detected in {selected_streams[i + 1]}.')
+                    diff -= total_extra_size * 4  # each sample is 4ms at 250Hz  # update diff accordingly
+
                 # Concatenate the selected streams by adding NaNs for the time gap
                 first_temp = BrainSenseRawsCorrected[selected_streams[i]].get_data()
                 second_temp = BrainSenseRawsCorrected[selected_streams[i + 1]].get_data()
