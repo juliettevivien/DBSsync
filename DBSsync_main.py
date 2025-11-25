@@ -134,8 +134,8 @@ class SyncGUI(QMainWindow):
 
         # Main vertical layout for the entire GUI
         main_layout = QVBoxLayout()
-        main_layout.addWidget(header_widget)
-        main_layout.addWidget(self.stacked_widget)
+        main_layout.addWidget(header_widget, stretch=1)
+        main_layout.addWidget(self.stacked_widget, stretch=10)
 
         # Create the footer with RESET button
         footer_layout = QHBoxLayout()
@@ -162,7 +162,7 @@ class SyncGUI(QMainWindow):
         footer_widget.setLayout(footer_layout)
         footer_widget.setStyleSheet("background-color: #d1d1d1; border-top: 2px solid #d3d3d3; border-left: 2px solid #d3d3d3;")
 
-        main_layout.addWidget(footer_widget)
+        main_layout.addWidget(footer_widget, stretch=1)
 
         # Central widget setup
         container = QWidget()
@@ -235,23 +235,24 @@ class SyncGUI(QMainWindow):
         # File selection button for intracranial
         self.btn_load_file_intra = Button("Load intracranial file (supported format: .mat, .fif, .json)", "lightblue")
         self.btn_load_file_intra.clicked.connect(partial(load_int_file, self))
-        layout.addWidget(self.btn_load_file_intra)
+        layout.addWidget(self.btn_load_file_intra, stretch = 1)
 
         # Create a label to display the selected file name
         self.file_label_intra = QLabel("No file selected")
         self.file_label_intra.setAlignment(PyQt5.QtCore.Qt.AlignCenter)
-        layout.addWidget(self.file_label_intra)
+        layout.addWidget(self.file_label_intra, stretch = 1)
 
         # Set up canvas for matplotlib for intracranial data
         self.figure_intra, self.ax_intra = plt.subplots()
         self.canvas_intra = FigureCanvas(self.figure_intra)
+        self.canvas_intra.setMinimumHeight(200)
         self.canvas_intra.setEnabled(False)  # Initially disabled
 
         # Create a navigation toolbar and add it to the layout
         self.toolbar_intra = NavigationToolbar(self.canvas_intra, self)
         self.toolbar_intra.setEnabled(False) # Initially disabled
-        layout.addWidget(self.toolbar_intra)  # Add the toolbar to the layout
-        layout.addWidget(self.canvas_intra)    # Add the canvas to the layout
+        layout.addWidget(self.toolbar_intra, stretch = 1)  # Add the toolbar to the layout
+        layout.addWidget(self.canvas_intra, stretch = 10)    # Add the canvas to the layout
 
         # Button layout for intracranial channel selection and plotting
         self.channel_layout_intra = QVBoxLayout()
@@ -327,23 +328,24 @@ class SyncGUI(QMainWindow):
         # File selection button for external recording
         self.btn_load_file_xdf = Button("Load external file (supported formats: .xdf, .fif, .poly5)", "lightgreen")
         self.btn_load_file_xdf.clicked.connect(partial(load_ext_file, self))
-        layout.addWidget(self.btn_load_file_xdf)       
+        layout.addWidget(self.btn_load_file_xdf, stretch = 1)       
 
         # Create a label to display the selected file name
         self.file_label_xdf = QLabel("No file selected")
         self.file_label_xdf.setAlignment(PyQt5.QtCore.Qt.AlignCenter)
-        layout.addWidget(self.file_label_xdf)
+        layout.addWidget(self.file_label_xdf, stretch = 1)
 
         # Set up canvas for matplotlib for external
         self.figure_xdf, self.ax_xdf = plt.subplots()
         self.canvas_xdf = FigureCanvas(self.figure_xdf)
+        self.canvas_xdf.setMinimumHeight(200)
         self.canvas_xdf.setEnabled(False)
 
         # Create a navigation toolbar and add it to the layout
         self.toolbar_xdf = NavigationToolbar(self.canvas_xdf, self)
         self.toolbar_xdf.setEnabled(False) 
-        layout.addWidget(self.toolbar_xdf)  # Add the toolbar to the layout
-        layout.addWidget(self.canvas_xdf)    # Add the canvas to the layout
+        layout.addWidget(self.toolbar_xdf, stretch = 1)  # Add the toolbar to the layout
+        layout.addWidget(self.canvas_xdf, stretch = 10)    # Add the canvas to the layout
 
         # Button layout for bipolar channel selection and plotting
         self.channel_layout_xdf = QVBoxLayout()
@@ -1135,6 +1137,9 @@ class SyncGUI(QMainWindow):
                 self.table.setColumnCount(len(df.columns) + 1)  # Extra column for checkbox
                 self.table.setHorizontalHeaderLabels(['Select'] + list(df.columns))
                 self.table.setRowCount(len(df))
+                self.table.setWordWrap(True)
+                self.table.resizeRowsToContents()
+                self.table.itemChanged.connect(lambda: self.table.resizeRowsToContents())
                 
                 for i, row in df.iterrows():
                     # Checkbox
@@ -1152,7 +1157,9 @@ class SyncGUI(QMainWindow):
                         item.setFlags(item.flags() & ~2)  # make read-only
                         self.table.setItem(i, j+1, item)
                 
-                self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+                #self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+                self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive) # allow user resizing
+                self.table.resizeColumnsToContents()
                 layout.addWidget(self.table)
                 
                 # OK button
