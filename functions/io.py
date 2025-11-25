@@ -226,6 +226,8 @@ def load_json_file(self, file_name: str):
             'LFP Recording start': dt1_reformatted,
             'LFP Recording end': rec_end_time,
             'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
+            'First packet time (ms)': ticks_in_ms[0],
+            'Last packet time (ms)': ticks_in_ms[-1],
             }])
             streamings_df = pd.concat([streamings_df, new_row], ignore_index=True)
 
@@ -318,8 +320,44 @@ def load_json_file(self, file_name: str):
         # Filter BrainSenseRaws based on user selection
         BrainSenseRawsCorrected = {k: v for k, v in BrainSenseRawsCorrected.items() if k in selected_streams}
 
-        # There should be only one selected stream
-        selected_stream_id = selected_streams[0]
+        # Check how many streams were selected
+        if len(selected_streams) > 1:
+            QMessageBox.warning(
+                self, "Multiple Streams Selected", 
+                f"{len(selected_streams)} streams were selected and will be concatenated. \n"
+                f"The following streams will be concatenated: {', '.join(selected_streams)}"
+                )
+            # calculate diff between end time of each stream and start time of next stream
+            for i in range(len(selected_streams) - 1):
+                end_time_current = streamings_df_corrected.loc[
+                    streamings_df_corrected['Streaming id'] == selected_streams[i], 
+                    'Last packet time (ms)'
+                    ].values[0]
+                start_time_next = streamings_df_corrected.loc[
+                    streamings_df_corrected['Streaming id'] == selected_streams[i + 1], 
+                    'First packet time (ms)'
+                    ].values[0]
+                diff = (start_time_next - 250) - end_time_current
+                # check if there was a clock reset (i.e., negative diff)
+                if diff < 0:
+                    print(f'A clock reset was detected between {selected_streams[i]} and {selected_streams[i + 1]}. Adding 3276800ms to the next stream timestamps.')
+                    start_time_next += 3276800
+                    # recalculate diff
+                    diff = (start_time_next - 250) - end_time_current
+                print(f'Time gap between {selected_streams[i]} and {selected_streams[i + 1]}: {diff} ms')
+                # Concatenate the selected streams by adding NaNs for the time gap
+                first_temp = BrainSenseRawsCorrected[selected_streams[i]].get_data()
+                second_temp = BrainSenseRawsCorrected[selected_streams[i + 1]].get_data()
+                n_missing_samples = int(diff / 4)  # since sampling rate is 250Hz, each sample is 4ms
+                n_channels = first_temp.shape[0]
+                nan_padding = np.full((n_channels, n_missing_samples), np.nan)
+                concatenated_data = np.concatenate((first_temp, nan_padding, second_temp), axis=1)
+                info = BrainSenseRawsCorrected[selected_streams[i]].info
+                BrainSenseRawsCorrected[selected_streams[i + 1]] = mne.io.RawArray(concatenated_data, info)
+            # After concatenation, keep only the last stream as it contains all data
+            selected_stream_id = selected_streams[-1]
+        else:
+            selected_stream_id = selected_streams[0]
 
         # Assign the corresponding MNE Raw object to dataset
         self.dataset_intra.raw_data = BrainSenseRawsCorrected[selected_stream_id]
