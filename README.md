@@ -1,5 +1,7 @@
 # DBSsync_GUI
 
+This repository is attached to a manuscript which has been submitted for publication on November, the 28th. When a public version (preprint or published) of the manuscript will be available, the link will be shared here.
+
 Instructions:
 
 1. Clone this repository
