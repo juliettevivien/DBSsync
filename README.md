@@ -1,6 +1,6 @@
 # DBSsync_GUI
 
-This repository is attached to a manuscript which has been submitted for publication on November, the 28th. When a public version (preprint or published) of the manuscript will be available, the link will be shared here.
+This repository is attached to a manuscript which has been submitted for publication on November, the 28th 2025. A preprint describing the toolbox design and functionnalities is available at: https://www.researchsquare.com/article/rs-8228751/v1
 
 Instructions:
 
