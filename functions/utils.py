@@ -243,7 +243,7 @@ def check_and_correct_missing_packets(streamings_dict, BrainSenseRaws, streaming
                     continue
 
                 else:
-                    # ---------------- DUPLICATED TICK PATH (your logic untouched) ----------------
+                    # ---------------- DUPLICATED TICK PATH  ----------------
                     if tick == int(reverted_ticks[pkt_idx + 1]):
                         print("Tick is duplicated, handling accordingly.")
 
