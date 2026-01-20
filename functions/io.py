@@ -420,7 +420,7 @@ def load_ext_file(self):
      # Open a QFileDialog to select an external file
     file_name, _ = QFileDialog.getOpenFileName(
         self, "Select External File", "", 
-        "XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5)"
+        "XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5);; MAT Files (*.mat)"
         )
     self.file_label_xdf.setText(f"Selected File: {basename(file_name)}")
     self.dataset_extra.file_name = basename(file_name)
@@ -479,6 +479,15 @@ def load_ext_file(self):
 
     elif file_name.endswith(".fif"):
         load_fif_file_ext(self, file_name)
+
+    elif file_name.endswith(".mat"):
+        load_mat_file_ext(self, file_name)
+
+    else:
+        QMessageBox.warning(
+            self, "Unsupported Format", 
+            ".mat files are not supported as external files. Please use .xdf, .fif, .mat or .poly5 files."
+            )
 
 
 def load_poly5_file(
@@ -550,7 +559,29 @@ def load_fif_file_ext(
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to load .fif file: {e}")
 
+def load_mat_file_ext(
+        self,
+        file_name: str,
+        ):
+    """Load .mat file."""
+    try:
+        # raw_data = mne.io.read_raw_fif(file_name, preload=True)
+        raw_data = read_raw_fieldtrip(
+            file_name, info={}, data_name="tAcc"
+            )
 
+        self.dataset_extra.raw_data = raw_data
+        self.dataset_extra.sf = raw_data.info["sfreq"]
+        self.dataset_extra.ch_names = raw_data.ch_names
+        self.dataset_extra.times = raw_data.times
+
+        # Enable channel selection and plot buttons
+        self.channel_label_xdf.setEnabled(True)
+        self.btn_select_channel_xdf.setEnabled(True)
+        self.btn_select_ecg_channel.setEnabled(True)
+    
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"Failed to load .mat file: {e}")
 
 def find_sync_stream(
         self, 
@@ -1176,17 +1207,33 @@ def synchronize_datasets_as_mat(self):
         LFP_synchronized = LFP_cropped
         external_synchronized = external_cropped  
 
-    # save the synchronized data in mat format          
+    # save the synchronized data in mat format     
+    # create a time vector for both recordings starting at 0s
+    LFP_time_offset = np.linspace(
+        0, len(LFP_synchronized) / self.dataset_intra.sf, len(LFP_synchronized)
+        )    
+    external_time_offset = np.linspace(
+        0, len(external_synchronized) / self.dataset_extra.sf, len(external_synchronized)
+        )
+    # add the time vector as the last column of the dataframes
     LFP_df_offset = pd.DataFrame(LFP_synchronized)
     LFP_df_offset.columns = self.dataset_intra.ch_names
     external_df_offset = pd.DataFrame(external_synchronized)
     external_df_offset.columns = self.dataset_extra.ch_names
-
+    LFP_df_offset["time"] = LFP_time_offset
+    external_df_offset["time"] = external_time_offset
+    
     lfp_title = (
         "SYNCHRONIZED_INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
         )
+    if str(self.dataset_extra.file_name).endswith('.xdf') or str(self.dataset_extra.file_name).endswith('.mat') or str(self.dataset_extra.file_name).endswith('.fif'):
+        x = 4
+    elif str(self.dataset_extra.file_name).endswith('.poly5'):
+        x = 6
+    else:
+        x = 1
     external_title = (
-        f"SYNCHRONIZED_EXTERNAL_" + str(self.dataset_extra.file_name[:-6]) + ".mat"
+        f"SYNCHRONIZED_EXTERNAL_" + str(self.dataset_extra.file_name[:-x]) + ".mat"
         )
     
     if self.folder_path is not None:

@@ -10,8 +10,8 @@
         "EcgLowpassFilter": "Options are: float value in Hz (e.g. 60.0)"
     },
 
-    "SavingFormatExternal": ".set",
-    "SavingFormatInternal": ".set",
+    "SavingFormatExternal": ".mat",
+    "SavingFormatInternal": ".mat",
     "SavingAllAsOne": false,
     "SavingFormatAllAsOne": ".pkl",
 
