@@ -48,6 +48,7 @@ from datetime import datetime, timedelta
 from functions.tmsi_poly5reader import Poly5Reader
 import functions.utils
 from pyxdftools.xdfdata import XdfData
+import os
 
 ##############################  INPUT FUNCTIONS  ###############################
 
@@ -126,12 +127,28 @@ def load_fif_file_int(
 
 def load_json_file(self, file_name: str):
     try:
+        weird_format = False
         with open(file_name, 'r') as f:
             j = json.loads(f.read())        
-        
-        list_of_streamings = j['BrainSenseTimeDomain']
-        list_of_stim_streamings = j['BrainSenseLfp']
+        print("JSON file loaded successfully.")
 
+        # check data type of j['BrainSenseTimeDomain']
+        print(f"j['BrainSenseTimeDomain'] data type: {type(j['BrainSenseTimeDomain'])}")
+
+        if type(j['BrainSenseTimeDomain']) is dict:
+            list_of_streamings = j['BrainSenseTimeDomain']
+            list_of_stim_streamings = j['BrainSenseLfp']
+        elif type(j['BrainSenseTimeDomain']) is list:
+            weird_format = True
+            list_of_streamings = j['BrainSenseTimeDomain'][0]
+            # print(f"j data type: {type(j)}")
+            # print(f"list of streamings data type: {type(list_of_streamings)}")
+            # print(f"Number of BrainSenseTimeDomain streams: {len(list_of_streamings)}")
+            list_of_stim_streamings = j['BrainSenseLfp'][0]
+            # print(f"Number of BrainSenseLfp streams: {len(list_of_stim_streamings)}")
+        else:
+            raise ValueError("Unexpected data structure in JSON file.")
+        
         streamings_dict = defaultdict(lambda: defaultdict(dict))
             
         stream_times = [0]
@@ -139,9 +156,17 @@ def load_json_file(self, file_name: str):
         stream_count = 1
 
         for i_stream, dat in enumerate(list_of_streamings):
+            print(f"Processing stream {i_stream + 1}/{len(list_of_streamings)}")
+            # print(f"dat data type: {type(dat)}")
             first_packet_time = dat['FirstPacketDateTime']
+            print(f"First packet time: {first_packet_time}")
 
             if first_packet_time != stream_times[-1] or i_stream == 0:
+                # print(f"GlobalSequences data type: {type(dat['GlobalSequences'])}")
+                # print(f"TicksInMses data type: {type(dat['TicksInMses'])}")
+                # print(f"GlobalPacketSizes data type: {type(dat['GlobalPacketSizes'])}")
+                # print(f"TimeDomainData type: {type(dat['TimeDomainData'])}")
+                # print(f"SampleRateInHz data type: {type(dat['SampleRateInHz'])}")
                 # new stream
                 streamings_dict[f'streaming_{stream_count}'][f'Channel_{dat["Channel"]}'] = {
                     'FirstPacketDateTime': first_packet_time,
@@ -165,31 +190,46 @@ def load_json_file(self, file_name: str):
             stream_times.append(first_packet_time)
 
         #  create a dataframe with all streamings and their channels
+        print("Creating streamings dataframe...")
         ends = []
         prev_streaming_id = None
         stream_count = -1
         #prev_stream_last_stim_ticks = None
 
-        streamings_df = pd.DataFrame(columns=[
-            'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
-            'LFP Recording duration'
-            ])
+        # streamings_df = pd.DataFrame(columns=[
+        #     'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
+        #     'LFP Recording duration'
+        #     ])
+        streamings_df = pd.DataFrame({
+            'Streaming id': pd.Series(dtype='string'), 
+            'LFP Channels': pd.Series(dtype='string'), 
+            'LFP Recording start': pd.Series(dtype='datetime64[ns]'), 
+            'LFP Recording end': pd.Series(dtype='datetime64[ns]'), 
+            'LFP Recording duration': pd.Series(dtype='string')
+        })
+        print(f"streamings_df: {streamings_df}")
+
         for streaming_id in streamings_dict.keys():
+            print(f"streamings_df: {streamings_df}")
             stream_count += 1
             channels = []
             time_since_last_rec_first_packet = None
             time_since_last_rec_ticks = None
             for channel in streamings_dict[streaming_id].keys():
+                print(f"Processing {streaming_id}, {channel}...")
                 channels.append(channel)
-
                 ticks_in_ms = streamings_dict[streaming_id][channel]['TicksInMses']
+                print(f"ticks_in_ms data type: {type(ticks_in_ms)}")
+                print(f"ticks_in_ms: {ticks_in_ms}")
                 rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
+                print(f"rec_dur_ms: {rec_dur_ms}")
                 rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
                 dt_str = streamings_dict[streaming_id][channel]['FirstPacketDateTime']
                 dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
                 
                 # compute rec_end_time using dt_obj + rec_duration: 
                 rec_end_time = dt_obj +  timedelta(minutes=rec_dur_min, seconds=rec_dur_sec, milliseconds=rec_dur_msec)
+                print(f"rec_end_time: {rec_end_time}")
 
                 if ends and streaming_id == prev_streaming_id:
                     time_since_last_rec = timedelta(0)
@@ -197,29 +237,52 @@ def load_json_file(self, file_name: str):
                     time_since_last_rec = dt_obj - ends[-1]
                 else:
                     time_since_last_rec = timedelta(0)
+                print(f"time_since_last_rec: {time_since_last_rec}")
 
                 dt1_parsed = datetime.strptime(streamings_dict[streaming_id][channel]['FirstPacketDateTime'], "%Y-%m-%dT%H:%M:%S.%fZ")
-                
+                print(f"dt1_parsed: {dt1_parsed}")
                 # Simply output it in the same visual format as dt2
                 dt1_reformatted = dt1_parsed.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # trim to .XXX milliseconds
+                print(f"dt1_reformatted: {dt1_reformatted}")
+                print(f"time_since_last_rec_first_packet: {time_since_last_rec_first_packet}")
+                print(f"time_since_last_rec_ticks: {time_since_last_rec_ticks}")
                 
-                if time_since_last_rec_first_packet is None:
-                    time_since_last_rec_first_packet = functions.utils.format_timedelta(time_since_last_rec)
-                if time_since_last_rec_ticks is None:
-                    time_since_last_rec_ticks = functions.utils.format_timedelta(timedelta(milliseconds=(ticks_in_ms[0] - (streamings_dict[prev_streaming_id][channel]['TicksInMses'][-1])) )) if ends and streaming_id != prev_streaming_id else '0 days, 0h, 0min, 0s, 0ms'
-                prev_streaming_id = streaming_id
+                # if time_since_last_rec_first_packet is None:
+                #     time_since_last_rec_first_packet = functions.utils.format_timedelta(time_since_last_rec)
+                #     print(f"time_since_last_rec_first_packet set to: {time_since_last_rec_first_packet}")
+                # if time_since_last_rec_ticks is None:
+                #     print(f"streamings_dict[prev_streaming_id]: {streamings_dict[prev_streaming_id]}")
+                #     print(f"streamings_dict[prev_streaming_id][channel]: {streamings_dict[prev_streaming_id][channel]}")
+                #     print(f"streamings_dict: {streamings_dict}")
+                #     print(f"prev_streaming_id: {prev_streaming_id}")
+                #     prev_ticks = streamings_dict[prev_streaming_id][channel]['TicksInMses']
+                #     print(f"prev_ticks: {prev_ticks}")
+                #     time_since_last_rec_ticks = functions.utils.format_timedelta(
+                #         timedelta(
+                #             milliseconds=(ticks_in_ms[0] - prev_ticks[-1])) 
+                #             ) if ends and streaming_id != prev_streaming_id else '0 days, 0h, 0min, 0s, 0ms'
+                # prev_streaming_id = streaming_id
+                # print(f"prev streaming_id: {prev_streaming_id}")
                 # convert time_since_last_rec in milliseconds
                 #time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
                 #time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
 
                 ends.append(rec_end_time)
-
-            data = list_of_stim_streamings[stream_count]['LfpData']
+            print("Processing stimulation data...")
+            print(f"list_of_stim_streamings[stream_count] data type: {type(list_of_stim_streamings[stream_count])}")
+            print(f"list_of_stim_streamings[stream_count]['LfpData'] data type: {type(list_of_stim_streamings[stream_count]['LfpData'])}")
+            if weird_format:
+                data = list_of_stim_streamings[stream_count]['LfpData'][0]
+            else:
+                data = list_of_stim_streamings[stream_count]['LfpData']
+            print(f"length data: {len(data)}")
             #ticks = np.array([d['TicksInMs'] for d in data])
             right_mA = np.array([d['Right']['mA'] for d in data])
             left_mA = np.array([d['Left']['mA'] for d in data])
             #time_since_last_rec_ticks_stim = (ticks[0] - 250) - prev_stream_last_stim_ticks if prev_stream_last_stim_ticks is not None else 0
             #prev_stream_last_stim_ticks = ticks[-1] 
+            print(f"First packet time (ms): {ticks_in_ms[0]}")
+            print(f"Last packet time (ms): {ticks_in_ms[-1]}")
             new_row = pd.DataFrame([{
             'Streaming id': streaming_id,
             'LFP Channels': channels,
@@ -231,15 +294,22 @@ def load_json_file(self, file_name: str):
             }])
             streamings_df = pd.concat([streamings_df, new_row], ignore_index=True)
 
+        print("Now at BrainSenseRaws")
         BrainSenseRaws = {}
 
+        print(f"streamings_dict keys: {streamings_dict.keys()}")
+
         for i, stream in enumerate(streamings_dict.keys()):
+            print(f"Processing BrainSenseRaws for {stream}...")
             #stream_dict = {}
             ch_names = []
             stim_ch_names = []
             data_arrays = []
             raw = streamings_dict[stream]
+            print(f"raw keys: {raw.keys()}")
             for ch in raw.keys(): 
+                print(f"Processing channel {ch}...")
+                print(f"raw[{ch}] keys: {raw[ch].keys()}")
                 ch_data = raw[ch]['TimeDomainData']
                 ch_names.append(ch)
                 #data_arrays.append(ch_data)
@@ -248,20 +318,25 @@ def load_json_file(self, file_name: str):
                 stim_ch_names.append('STIM_' + ch)
 
         # Because their sampling rate is different, resample them so that they match the LFP data length and crop if necessary (for small irregularities)        
-            stim_sf = j['BrainSenseLfp'][i]['SampleRateInHz']  # == 2Hz
+            print(f"j keys: {j.keys()}")
+            stim_sf = j['BrainSenseLfp'][0][i]['SampleRateInHz']  # == 2Hz
             left_stim = []
             right_stim = []
-            for k in range(len(j['BrainSenseLfp'][i]['LfpData'])):
+            for k in range(len(j['BrainSenseLfp'][0][i]['LfpData'][0])):
                 # get right and left mA values
-                right_mA = j['BrainSenseLfp'][i]['LfpData'][k]['Right']['mA']
-                left_mA = j['BrainSenseLfp'][i]['LfpData'][k]['Left']['mA']
+                right_mA = j['BrainSenseLfp'][0][i]['LfpData'][0][k]['Right']['mA']
+                # print(f"right_mA: {right_mA}")
+                left_mA = j['BrainSenseLfp'][0][i]['LfpData'][0][k]['Left']['mA']
+                # print(f"left_mA: {left_mA}")
                 right_stim.append(right_mA)
                 left_stim.append(left_mA)        
             stim_time = np.arange(len(right_stim)) / stim_sf      # e.g. every 0.5 s
+            # print(f"stim_time: {stim_time}")
             lfp_time  = np.arange(int(len(right_stim) * (250 / stim_sf))) / 250  # upsampled time
 
             # resample stim data to match lfp data length
             # Nearest-neighbor interpolation
+            print("Resampling stimulation data to match LFP data length...")
             right_stim_resampled = np.interp(
                 lfp_time,
                 stim_time,
@@ -280,6 +355,7 @@ def load_json_file(self, file_name: str):
 
             # add some NaNs if resampled stim data is shorter than lfp data
             lfp_data_length = len(raw[ch]['TimeDomainData'])
+            print(f"lfp_data_length: {lfp_data_length}")
             if len(left_stim_resampled) < lfp_data_length:
                 left_stim_resampled = np.concatenate([np.nan * np.ones(lfp_data_length - len(left_stim_resampled)), left_stim_resampled])
             elif len(left_stim_resampled) > lfp_data_length:
@@ -293,16 +369,26 @@ def load_json_file(self, file_name: str):
             data_arrays.append(left_stim_resampled_scaled)
             data_arrays.append(right_stim_resampled_scaled)
 
+            print("Creating MNE info...")
             info = mne.create_info(
             ch_names=ch_names + stim_ch_names,
             sfreq=250,  # Percept sampling frequency is by default 250Hz
             ch_types=['eeg'] * len(ch_names) + ['eeg'] * len(stim_ch_names)
             )
+            print("Creating RawArray...")
+            print(f"data_arrays lengths: {[len(arr) for arr in data_arrays]}")
+            print(f"data_arrays shapes: {[np.array(arr).shape for arr in data_arrays]}")
+            data = np.vstack([np.asarray(ch).squeeze() for ch in data_arrays])
 
             raw = mne.io.RawArray(
-                data = np.array(data_arrays),
-                info = info
+                data=data,
+                info=info
             )
+            # raw = mne.io.RawArray(
+            #     data = np.array(data_arrays),
+            #     info = info
+            # )
+            print(f"BrainSenseRaws[{stream}] created.")
             BrainSenseRaws[stream] = raw                
 
         # Now BrainSenseRaws contains all streams as MNE Raw objects, but we 
@@ -333,11 +419,14 @@ def load_json_file(self, file_name: str):
                     streamings_df_corrected['Streaming id'] == selected_streams[i], 
                     'Last packet time (ms)'
                     ].values[0]
+                print(f"end_time_current: {end_time_current}")
                 start_time_next = streamings_df_corrected.loc[
                     streamings_df_corrected['Streaming id'] == selected_streams[i + 1], 
                     'First packet time (ms)'
                     ].values[0]
+                print(f"start_time_next: {start_time_next}")
                 diff = (start_time_next - 250) - end_time_current
+                print(f"diff: {diff}")
                 # check if there was a clock reset (i.e., negative diff)
                 if diff < 0:
                     print(f'A clock reset was detected between {selected_streams[i]} and {selected_streams[i + 1]}. Adding 3276800ms to the next stream timestamps.')
@@ -350,6 +439,7 @@ def load_json_file(self, file_name: str):
                 # sometimes, packets have an irregular size, leading to a mismatch between expected duration and actual number of samples
                 # check if first packet sizes is always either 62 or 63 samples to get real start time
                 packet_sizes = streamings_dict[selected_streams[i + 1]][list(streamings_dict[selected_streams[i + 1]].keys())[0]]['GlobalPacketSizes']
+                print(f"lenght packet_sizes: {len(packet_sizes)}")
                 # get sizes that are not 62 or 63
                 if packet_sizes[0] not in [62, 63]:
                     diff -= (packet_sizes[0] - 62) * 4  # each sample is 4ms at 250Hz
@@ -368,10 +458,13 @@ def load_json_file(self, file_name: str):
                 first_temp = BrainSenseRawsCorrected[selected_streams[i]].get_data()
                 second_temp = BrainSenseRawsCorrected[selected_streams[i + 1]].get_data()
                 n_missing_samples = int(diff / 4)  # since sampling rate is 250Hz, each sample is 4ms
+                print(f"n_missing_samples to insert: {n_missing_samples}")
                 n_channels = first_temp.shape[0]
                 nan_padding = np.full((n_channels, n_missing_samples), np.nan)
                 concatenated_data = np.concatenate((first_temp, nan_padding, second_temp), axis=1)
+                print(f"concatenated_data shape: {concatenated_data.shape}")
                 info = BrainSenseRawsCorrected[selected_streams[i]].info
+                print("Creating concatenated RawArray...")
                 BrainSenseRawsCorrected[selected_streams[i + 1]] = mne.io.RawArray(concatenated_data, info)
             # After concatenation, keep only the last stream as it contains all data
             selected_stream_id = selected_streams[-1]
@@ -420,7 +513,7 @@ def load_ext_file(self):
      # Open a QFileDialog to select an external file
     file_name, _ = QFileDialog.getOpenFileName(
         self, "Select External File", "", 
-        "XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5);; MAT Files (*.mat)"
+        "MAT Files (*.mat);; XDF Files (*.xdf);;FIF Files (*.fif);;Poly5 Files (*.Poly5)"
         )
     self.file_label_xdf.setText(f"Selected File: {basename(file_name)}")
     self.dataset_extra.file_name = basename(file_name)
@@ -762,7 +855,6 @@ def save_int_as_pickle(self):
         "Saving done. Intracranial file saved as .pkl"
         )
 
-
 def save_int_as_mat(self):
     if self.dataset_intra.flag_cleaned == True:
         lfp_title = (
@@ -773,14 +865,36 @@ def save_int_as_mat(self):
             "INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
             )
         
+    # if self.folder_path is not None:
+    #     LFP_filename = join(self.folder_path, lfp_title)
+    # else:
+    #     LFP_filename = lfp_title
+
+    LFP_array = self.dataset_intra.raw_data.get_data().T
+    # save the synchronized data in mat format     
+    # create a time vector for both recordings starting at 0s
+    LFP_time_offset = np.linspace(
+        0, len(LFP_array) / self.dataset_intra.sf, len(LFP_array)
+        )    
+
+    # add the time vector as the last column of the dataframes
+    LFP_df = pd.DataFrame(LFP_array)
+    LFP_df.columns = self.dataset_intra.ch_names
+    LFP_df["time"] = LFP_time_offset
+
+    
     if self.folder_path is not None:
         LFP_filename = join(self.folder_path, lfp_title)
     else:
-        LFP_filename = lfp_title
-
-    LFP_array = self.dataset_intra.raw_data.get_data()
-    LFP_df = pd.DataFrame(LFP_array.T)
-    LFP_df.columns = self.dataset_intra.ch_names
+    #     LFP_filename = lfp_title
+    #     external_filename = external_title
+        synced_path = "C:\\Users\\Juliette\\OneDrive - Charité - Universitätsmedizin Berlin\\Fichiers de Kaplan, Jonathan - EntrainERNA\\derivatives\\synced"
+        sub = self.dataset_intra.file_name.split('_')[0]
+        sess = self.dataset_intra.file_name.split('_')[1]
+        saving_filepath = join(synced_path, sub, sess)
+        if not os.path.exists(saving_filepath):
+            os.makedirs(saving_filepath)
+        LFP_filename = join(saving_filepath, lfp_title)
 
     savemat(
         LFP_filename,
@@ -1179,19 +1293,21 @@ def synchronize_datasets_as_mat(self):
     The synchronized datasets are saved in the specified folder.
     If no folder is selected, they are saved in the current working directory.
     """
-    index_start_LFP = (self.dataset_intra.art_start - 1) * self.dataset_intra.sf
-    LFP_array = self.dataset_intra.synced_data.get_data()
-    LFP_cropped = LFP_array[:, int(index_start_LFP) :].T
+    # index_start_LFP = (self.dataset_intra.art_start - 1) * self.dataset_intra.sf
+    # LFP_array = self.dataset_intra.synced_data.get_data()
+    # LFP_cropped = LFP_array[:, int(index_start_LFP) :].T
 
     ## External ##
     # Crop beginning of external recordings 1s before first artifact:
-    time_start_external = (self.dataset_extra.art_start) - 1
-    index_start_external = time_start_external * self.dataset_extra.sf
-    external_file = self.dataset_extra.synced_data.get_data()
-    external_cropped = external_file[:, int(index_start_external) :].T
+    # time_start_external = (self.dataset_extra.art_start) - 1
+    # index_start_external = time_start_external * self.dataset_extra.sf
+    # external_file = self.dataset_extra.synced_data.get_data()
+    # external_cropped = external_file[:, int(index_start_external) :].T
 
     # Check which recording is the longest,
     # crop it to give it the same duration as the other one:
+    LFP_cropped = self.dataset_intra.synced_data.get_data().T
+    external_cropped = self.dataset_extra.synced_data.get_data().T
     LFP_rec_duration = len(LFP_cropped) / self.dataset_intra.sf
     external_rec_duration = len(external_cropped) / self.dataset_extra.sf
 
@@ -1206,6 +1322,7 @@ def synchronize_datasets_as_mat(self):
     else:
         LFP_synchronized = LFP_cropped
         external_synchronized = external_cropped  
+
 
     # save the synchronized data in mat format     
     # create a time vector for both recordings starting at 0s
@@ -1223,9 +1340,15 @@ def synchronize_datasets_as_mat(self):
     LFP_df_offset["time"] = LFP_time_offset
     external_df_offset["time"] = external_time_offset
     
-    lfp_title = (
-        "SYNCHRONIZED_INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
+    if self.dataset_intra.file_name.endswith('.json'):
+        # if the json file was used, then take the name from the external dataset
+        lfp_title = (
+        "SYNCHRONIZED_INTRACRANIAL_" + str(self.dataset_extra.file_name[:-8]) + "_lfp.mat"
         )
+    else:
+        lfp_title = (
+            "SYNCHRONIZED_INTRACRANIAL_" + str(self.dataset_intra.file_name[:-4]) + ".mat"
+            )
     if str(self.dataset_extra.file_name).endswith('.xdf') or str(self.dataset_extra.file_name).endswith('.mat') or str(self.dataset_extra.file_name).endswith('.fif'):
         x = 4
     elif str(self.dataset_extra.file_name).endswith('.poly5'):
@@ -1240,8 +1363,22 @@ def synchronize_datasets_as_mat(self):
         LFP_filename = join(self.folder_path, lfp_title)
         external_filename = join(self.folder_path, external_title)
     else:
-        LFP_filename = lfp_title
-        external_filename = external_title
+    #     LFP_filename = lfp_title
+    #     external_filename = external_title
+        synced_path = "C:\\Users\\Juliette\\OneDrive - Charité - Universitätsmedizin Berlin\\Fichiers de Kaplan, Jonathan - EntrainERNA\\derivatives\\synced"
+        if self.dataset_intra.file_name.endswith('.json'):
+            # if the json file was used, then take the name from the external dataset
+            sub = self.dataset_extra.file_name.split('_')[0]
+            sess = self.dataset_extra.file_name.split('_')[1]
+        else:
+            sub = self.dataset_intra.file_name.split('_')[0]
+            sess = self.dataset_intra.file_name.split('_')[1]
+        saving_filepath = join(synced_path, sub, sess)
+        if not os.path.exists(saving_filepath):
+            os.makedirs(saving_filepath)
+        LFP_filename = join(saving_filepath, lfp_title)
+        print("LFP filename:", LFP_filename)
+        external_filename = join(saving_filepath, external_title)
 
     savemat(
         LFP_filename,
