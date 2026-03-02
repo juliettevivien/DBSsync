@@ -1194,6 +1194,8 @@ def synchronize_datasets_as_one_pickle(self):
         "Synchronization done. Everything saved as one .pickle file"
         )
 
+
+ 
 def synchronize_datasets_as_mat(self):
     """
     This function synchronizes intracranial and external datasets,
@@ -1204,19 +1206,21 @@ def synchronize_datasets_as_mat(self):
     The synchronized datasets are saved in the specified folder.
     If no folder is selected, they are saved in the current working directory.
     """
-    index_start_LFP = (self.dataset_intra.art_start - 1) * self.dataset_intra.sf
-    LFP_array = self.dataset_intra.synced_data.get_data()
-    LFP_cropped = LFP_array[:, int(index_start_LFP) :].T
+    # index_start_LFP = (self.dataset_intra.art_start - 1) * self.dataset_intra.sf
+    # LFP_array = self.dataset_intra.synced_data.get_data()
+    # LFP_cropped = LFP_array[:, int(index_start_LFP) :].T
 
-    ## External ##
-    # Crop beginning of external recordings 1s before first artifact:
-    time_start_external = (self.dataset_extra.art_start) - 1
-    index_start_external = time_start_external * self.dataset_extra.sf
-    external_file = self.dataset_extra.synced_data.get_data()
-    external_cropped = external_file[:, int(index_start_external) :].T
+    # ## External ##
+    # # Crop beginning of external recordings 1s before first artifact:
+    # time_start_external = (self.dataset_extra.art_start) - 1
+    # index_start_external = time_start_external * self.dataset_extra.sf
+    # external_file = self.dataset_extra.synced_data.get_data()
+    # external_cropped = external_file[:, int(index_start_external) :].T
 
     # Check which recording is the longest,
     # crop it to give it the same duration as the other one:
+    LFP_cropped = self.dataset_intra.synced_data.get_data().T
+    external_cropped = self.dataset_extra.synced_data.get_data().T
     LFP_rec_duration = len(LFP_cropped) / self.dataset_intra.sf
     external_rec_duration = len(external_cropped) / self.dataset_extra.sf
 
@@ -1251,12 +1255,6 @@ def synchronize_datasets_as_mat(self):
     lfp_title = (
         "SYNCHRONIZED_INTRACRANIAL_" + str(self.dataset_intra.file_name.rsplit('.', 1)[0]) + ".mat"
         )
-    # if str(self.dataset_extra.file_name).endswith('.xdf') or str(self.dataset_extra.file_name).endswith('.mat') or str(self.dataset_extra.file_name).endswith('.fif'):
-    #     x = 4
-    # elif str(self.dataset_extra.file_name).endswith('.poly5'):
-    #     x = 6
-    # else:
-    #     x = 1
     external_title = (
         f"SYNCHRONIZED_EXTERNAL_" + str(self.dataset_extra.file_name.rsplit('.', 1)[0]) + ".mat"
         )
