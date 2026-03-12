@@ -194,7 +194,7 @@ def plot_scatter_channel_external(self, art_start_BIP=None):
     channel_data = self.dataset_extra.raw_data.get_data()[
          self.dataset_extra.selected_channel_index
          ]
-    b, a = scipy.signal.butter(1, 0.05, "highpass")
+    b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
     channel_data_to_plot = scipy.signal.filtfilt(b, a, channel_data)
     times = self.dataset_extra.raw_data.times     
 

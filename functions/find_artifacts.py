@@ -31,7 +31,7 @@ def detect_artifacts_external(self):
     channel_data = self.dataset_extra.raw_data.get_data()[
         self.dataset_extra.selected_channel_index
         ]
-    b, a = scipy.signal.butter(1, 0.05, "highpass")
+    b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
     chan_data_detrend = scipy.signal.filtfilt(b, a, channel_data)        
     self.dataset_extra.art_start = find_external_sync_artifact(
         data=chan_data_detrend, sf_external=self.dataset_extra.sf, 
@@ -82,8 +82,11 @@ def find_external_sync_artifact(
     # previous and next sample (first peak of the artifact).
     start_index = 0
     art_time_BIP = None
+
     while art_time_BIP == None:
-        thresh_BIP = -1.5 * (np.ptp(data[start_index:(start_index + int(sf_external * 2))]))
+        # thresh_BIP = -1.5 * (np.ptp(data[start_index:(start_index + int(sf_external * 2))]))
+        thresh_window = data[start_index:(start_index + int(sf_external * 2))] # Take 2 seconds of data for threshold calculation
+        thresh_BIP = -1.5 * (np.ptp(thresh_window)) # Threshold is set to 1.5 times the peak-to-peak amplitude of the threshold window, can be varied
         for q in range(start_index, len(data) - 2):
             if (
                 (data[q] <= thresh_BIP)
@@ -92,7 +95,7 @@ def find_external_sync_artifact(
             ):
                 art_time_BIP = times[q]
                 break
-        start_index += 1*sf_external
+        start_index += 1*sf_external # use a moving window in case recording was started with stimulation not at 0mA
 
     return art_time_BIP
 
