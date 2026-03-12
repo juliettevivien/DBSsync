@@ -51,8 +51,10 @@ def plot_channel_intra(self):
         channel_data = self.dataset_intra.raw_data.get_data()[
              self.dataset_intra.selected_channel_index
              ]
-        #times = self.dataset_intra.times
-        times = np.linspace(0, len(channel_data)/self.dataset_intra.sf, len(channel_data))
+        # #times = self.dataset_intra.times
+        # times = np.linspace(0, len(channel_data)/self.dataset_intra.sf, len(channel_data))
+        # print(f"Intracranial channel times: {times[0:50]}")
+        times = self.dataset_intra.times
         self.ax_intra.plot(times, channel_data)
         self.ax_intra.set_title(
              f"Channel {self.dataset_intra.selected_channel_index} data - {self.dataset_intra.selected_channel_name}"
@@ -72,6 +74,8 @@ def plot_channel_extra(self):
              self.dataset_extra.selected_channel_index
              ]
         times = self.dataset_extra.times
+        print(f"External channel times: {times[0:50]}")
+        print(f"External channel sf: {self.dataset_extra.sf}")
         # apply a high-pass filter to detrend the data if the channel to plot is a bipolar channel:
         if self.dataset_extra.selected_channel_name.startswith("BIP"):
             b, a = scipy.signal.butter(1, 0.05, "highpass")
@@ -125,6 +129,7 @@ def plot_synced_channels(self):
          self.dataset_intra.selected_channel_index
          ]
     timescale_intra = self.dataset_intra.times
+    print(f"Intracranial channel times for synced plot: {timescale_intra[0:50]}")
     art_start_0_intra = self.dataset_intra.art_start - 1
     # Find the index in self.dataset_intra.times corresponding to art_start_0
     art_start_index_intra = (timescale_intra >= art_start_0_intra).argmax()

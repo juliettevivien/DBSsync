@@ -79,10 +79,12 @@ def load_mat_file(self, file_name):
         self.dataset_intra.raw_data = raw_data  # Assign to dataset
         self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
         self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
-        self.dataset_intra.times = np.linspace(
-            0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-            raw_data.get_data().shape[1]
-            )
+        # self.dataset_intra.times = np.linspace(
+        #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+        #     raw_data.get_data().shape[1]
+        #     )
+        end_time = raw_data.get_data().shape[1] / self.dataset_intra.sf
+        self.dataset_intra.times = np.arange(0, end_time, 0.004)
         self.file_label_intra.setText(
             f"Selected File: {basename(file_name)}"
             )
