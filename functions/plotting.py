@@ -72,12 +72,14 @@ def plot_channel_extra(self):
              self.dataset_extra.selected_channel_index
              ]
         times = self.dataset_extra.times
-        # apply a high-pass filter to detrend the data if the channel to plot is a bipolar channel:
-        if self.dataset_extra.selected_channel_name.startswith("BIP"):
-            b, a = scipy.signal.butter(1, 0.05, "highpass")
-            channel_data_to_plot = scipy.signal.filtfilt(b, a, channel_data)
-        else:
-            channel_data_to_plot = channel_data
+        # # apply a high-pass filter to detrend the data if the channel to plot is a bipolar channel:
+        # if self.dataset_extra.selected_channel_name.startswith("BIP"):
+        #     b, a = scipy.signal.butter(1, 0.1, "highpass")
+        #     channel_data_to_plot = scipy.signal.filtfilt(b, a, channel_data)
+        # else:
+        #     channel_data_to_plot = channel_data
+        b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
+        channel_data_to_plot = scipy.signal.filtfilt(b, a, channel_data)
         self.ax_xdf.plot(times, channel_data_to_plot)
         self.ax_xdf.set_title(
              f"Channel {self.dataset_extra.selected_channel_index} data - {self.dataset_extra.selected_channel_name}"
@@ -103,7 +105,7 @@ def plot_synced_channels(self):
          ]
     data_extra_scaled = data_extra * y_max_factor
 
-    b, a = scipy.signal.butter(1, 0.05, "highpass")
+    b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
     data_extra_detrended = scipy.signal.filtfilt(b, a, data_extra_scaled)
 
     timescale_extra = self.dataset_extra.times
@@ -194,6 +196,7 @@ def plot_scatter_channel_external(self, art_start_BIP=None):
     channel_data = self.dataset_extra.raw_data.get_data()[
          self.dataset_extra.selected_channel_index
          ]
+    # b, a = scipy.signal.butter(1, 0.05, "highpass")
     b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
     channel_data_to_plot = scipy.signal.filtfilt(b, a, channel_data)
     times = self.dataset_extra.raw_data.times     
@@ -233,7 +236,7 @@ def plot_overlapped_channels_ecg(self):
              ]
 
         # Apply 0.1 Hz-100Hz band-pass filter to ECG data
-        b, a = scipy.signal.butter(1, 0.05, "highpass")
+        b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
         detrended_data = scipy.signal.filtfilt(b, a, data_extra)
         low_cutoff = 100.0  # Hz
         b2, a2 = scipy.signal.butter(
@@ -315,7 +318,7 @@ def plot_scatter_channel_extra_sf(self):
     self.toolbar_extra_sf.setEnabled(True)
     self.canvas_extra_sf.setEnabled(True)
     self.ax_extra_sf.clear()
-    b, a = scipy.signal.butter(1, 0.05, "highpass")
+    b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
     data = scipy.signal.filtfilt(
          b, a, 
          self.dataset_extra.raw_data.get_data()[
