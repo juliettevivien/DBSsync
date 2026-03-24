@@ -304,6 +304,13 @@ def compute_eff_sf(self):
     #     self.dataset_intra.raw_data.get_data().shape[1]
     #     )
     end_time = self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf
+    len_data_intra = self.dataset_intra.raw_data.get_data().shape[1]
+    # correct for sample number mismatch:
+    if len(timescale_intra) != len_data_intra:
+        print(f"Length mismatch between timescale_intra and data_intra: {len(timescale_intra)} vs {len_data_intra}. Correcting for it.")
+        length = len_data_intra
+        timescale_intra = timescale_intra[:length]
+
     self.dataset_intra.times = np.arange(0, end_time, 1/self.dataset_intra.sf)
     self.label_eff_sf.setText(
         f"The effective sampling frequency of the intracranial recording is actually {self.dataset_intra.eff_sf} and will be used for synchronization.")

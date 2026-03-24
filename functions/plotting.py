@@ -291,6 +291,12 @@ def plot_overlapped_channels_ecg(self):
         #     )
         end_time = self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf
         timescale_intra = np.arange(0, end_time, 1/self.dataset_intra.sf)
+        # correct for sample number mismatch:
+        if len(timescale_intra) != len(data_intra):
+            print(f"Length mismatch between timescale_intra and data_intra: {len(timescale_intra)} vs {len(data_intra)}. Correcting for it.")
+            length = len(data_intra)
+            timescale_intra = timescale_intra[:length]
+
         self.ax_overlapped.plot(
             timescale_intra, data_intra, color='#6495ED', 
             label='Intracranial channel to clean'
