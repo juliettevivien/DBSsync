@@ -429,6 +429,7 @@ def load_ext_file(self):
     self.file_label_xdf.setText(f"Selected File: {basename(file_name)}")
     self.dataset_extra.file_name = basename(file_name)
     self.dataset_extra.file_path = dirname(file_name)
+    extension = file_name.split('.')[-1]
     
     if file_name.endswith(".xdf"):
         xdf_datas = resolve_streams(file_name)
@@ -478,7 +479,7 @@ def load_ext_file(self):
                 self, "Stream Selection", "Stream selection was cancelled."
                 )
 
-    elif file_name.endswith(".Poly5"):
+    elif file_name.endswith(".Poly5") or file_name.endswith(".poly5"):
         load_poly5_file(self, file_name)
 
     elif file_name.endswith(".fif"):
@@ -490,7 +491,7 @@ def load_ext_file(self):
     else:
         QMessageBox.warning(
             self, "Unsupported Format", 
-            ".mat files are not supported as external files. Please use .xdf, .fif, .mat or .poly5 files."
+            f".{extension} files are not supported as external files. Please use .xdf, .fif, .mat or .poly5 files."
             )
 
 
