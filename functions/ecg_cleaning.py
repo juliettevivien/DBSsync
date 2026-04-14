@@ -316,8 +316,9 @@ def find_r_peaks_based_on_ext_ecg(
         self.dataset_extra.selected_channel_index_ecg
         ]
 
-    # Apply 0.05 Hz-60Hz band-pass filter to ECG data. The low-pass can be changed in the config file.
-    b, a = scipy.signal.butter(1, 0.05, "highpass")
+    # Apply 0.5 Hz-60Hz band-pass filter to ECG data. The low-pass can be changed in the config file.
+    # b, a = scipy.signal.butter(1, 0.05, "highpass")
+    b, a = scipy.signal.butter(1, 0.5, "highpass", fs = self.dataset_extra.sf)
     detrended_data = scipy.signal.filtfilt(b, a, data_extra)
 
     b2, a2 = scipy.signal.butter(
@@ -396,14 +397,6 @@ def find_r_peaks_based_on_ext_ecg(
             )
             return np.array([]), 'Unknown', np.array([])
 
-    # Plot detected R-peaks ####
-    self.canvas_detected_peaks.setEnabled(True)
-    self.toolbar_detected_peaks.setEnabled(True)
-    self.ax_detected_peaks.clear()
-    self.ax_detected_peaks.set_title('Detected Peaks')
-    self.ax_detected_peaks.plot(timescale_extra, ecg_data, label='Raw ECG', alpha=0.1)
-    self.ax_detected_peaks.plot(timescale_extra[chosen_peaks], ecg_data[chosen_peaks], 'ro', label='Detected Peaks', alpha=0.1)
-    self.canvas_detected_peaks.draw()
 
     # Convert R-peaks from ECG samples to seconds
     r_peak_times_sec = chosen_peaks / self.dataset_extra.sf
@@ -498,7 +491,22 @@ def find_r_peaks_based_on_ext_ecg(
         )
         return np.array([]), polarity, np.array([])
 
-    # Plot detected R-peaks
+    # Plot detected R-peaks in external
+    # first scale the ECG data to match the amplitude of the LFP channel for better visualization
+    ptp_lfp = np.ptp(full_data) / 2
+    ptp_ecg = np.ptp(ecg_data)
+    factor = ptp_lfp/ptp_ecg
+    ecg_data_scaled = ecg_data * factor
+
+    self.canvas_detected_peaks.setEnabled(True)
+    self.toolbar_detected_peaks.setEnabled(True)
+    self.ax_detected_peaks.clear()
+    self.ax_detected_peaks.set_title('Detected Peaks')
+    self.ax_detected_peaks.plot(timescale_extra, ecg_data_scaled, label='Raw ECG', alpha=0.1)
+    self.ax_detected_peaks.plot(timescale_extra[chosen_peaks], ecg_data_scaled[chosen_peaks], 'ro', label='Detected Peaks', alpha=0.1)
+    self.canvas_detected_peaks.draw()
+
+    # Plot detected R-peaks in intracranial
     self.ax_detected_peaks.plot(times, full_data, label='Raw LFP', color='black')
     self.ax_detected_peaks.plot(
         np.array(times)[lfp_peak_indices], 

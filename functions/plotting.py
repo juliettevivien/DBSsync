@@ -229,67 +229,22 @@ def plot_overlapped_channels_ecg(self):
     self.toolbar_overlapped.setEnabled(True)
     self.canvas_overlapped.setEnabled(True)
     self.ax_overlapped.clear()
-
-    # Plot the external channel synchronized if one was selected:
-    if self.dataset_extra.selected_channel_name_ecg is not None:
-        data_extra = self.dataset_extra.synced_data.get_data()[
-             self.dataset_extra.selected_channel_index_ecg
-             ]
-
-        # Apply 0.1 Hz-100Hz band-pass filter to ECG data
-        b, a = scipy.signal.butter(1, 0.1, "highpass", fs=self.dataset_extra.sf)
-        detrended_data = scipy.signal.filtfilt(b, a, data_extra)
-        low_cutoff = 100.0  # Hz
-        b2, a2 = scipy.signal.butter(
-            N=4,  # Filter order
-            Wn=low_cutoff,
-            btype="lowpass",
-            fs=self.dataset_extra.sf 
-        )
-        ecg_data = scipy.signal.filtfilt(b2, a2, detrended_data)
-        # timescale_extra = np.linspace(
-        #     0, 
-        #     self.dataset_extra.synced_data.get_data().shape[1]/self.dataset_extra.sf, 
-        #     self.dataset_extra.synced_data.get_data().shape[1]
-        #     )
-        end_time = self.dataset_extra.synced_data.get_data().shape[1]/self.dataset_extra.sf
-        timescale_extra = np.arange(0, end_time, 1/self.dataset_extra.sf)
-
-        self.ax_overlapped.plot(
-             timescale_extra, ecg_data, color='#90EE90', 
-             label='External ECG channel'
-             )
         
-    # Plot the intracranial channel 
-    if self.config['NoSync'] == True:
-        data_intra = self.dataset_intra.raw_data.get_data()[
-         self.dataset_intra.selected_channel_index_ecg
-         ]
-        # timescale_intra = np.linspace(
-        #     0, 
-        #     self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-        #     self.dataset_intra.raw_data.get_data().shape[1]
-        #     )
-        timescale_intra = self.dataset_intra.times
-        self.ax_overlapped.plot(
-            timescale_intra, data_intra, color='#6495ED', 
-            label='Intracranial channel to clean'
-            )
-        self.ax_overlapped.legend(loc='upper left')
-        self.canvas_overlapped.draw()
-        self.btn_detect_r_peaks.setEnabled(True)
-        self.btn_manual_override.setEnabled(True)
-
-    else:
-        data_intra = self.dataset_intra.synced_data.get_data()[
+    # Plot the intracranial channel if one was selected:
+    if self.dataset_intra.selected_channel_index_ecg is not None:
+        if self.config['NoSync'] == True:
+            data_intra = self.dataset_intra.raw_data.get_data()[
             self.dataset_intra.selected_channel_index_ecg
             ]
-        # timescale_intra = np.linspace(
-        #     0, 
-        #     self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf, 
-        #     self.dataset_intra.synced_data.get_data().shape[1]
-        #     )
-        end_time = self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf
+            end_time = self.dataset_intra.raw_data.get_data().shape[1]/self.dataset_intra.sf
+
+
+        else:
+            data_intra = self.dataset_intra.synced_data.get_data()[
+                self.dataset_intra.selected_channel_index_ecg
+                ]
+            end_time = self.dataset_intra.synced_data.get_data().shape[1]/self.dataset_intra.sf
+    
         timescale_intra = np.arange(0, end_time, 1/self.dataset_intra.sf)
         # correct for sample number mismatch:
         if len(timescale_intra) != len(data_intra):
@@ -299,13 +254,53 @@ def plot_overlapped_channels_ecg(self):
 
         self.ax_overlapped.plot(
             timescale_intra, data_intra, color='#6495ED', 
-            label='Intracranial channel to clean'
+            label='Intracranial channel to clean',zorder=100
             )
+
+    # Plot the external channel synchronized if one was selected:
+    if self.dataset_extra.selected_channel_name_ecg is not None:
+        data_extra = self.dataset_extra.synced_data.get_data()[
+             self.dataset_extra.selected_channel_index_ecg
+             ]
+
+        # Apply 0.5 Hz-60Hz band-pass filter to ECG data
+        b, a = scipy.signal.butter(1, 0.5, "highpass", fs=self.dataset_extra.sf)
+        # b, a = scipy.signal.butter(1, 0.05, "highpass")
+        detrended_data = scipy.signal.filtfilt(b, a, data_extra)
+        b2, a2 = scipy.signal.butter(
+            N=4,  # Filter order
+            Wn=self.config["EcgLowpassFilter"],
+            btype="lowpass",
+            fs=self.dataset_extra.sf 
+        )
+        ecg_data = scipy.signal.filtfilt(b2, a2, detrended_data)
+        end_time = self.dataset_extra.synced_data.get_data().shape[1]/self.dataset_extra.sf
+        timescale_extra = np.arange(0, end_time, 1/self.dataset_extra.sf)
+
+        # correct for sample number mismatch:
+        if len(timescale_extra) != len(ecg_data):
+            print(f"Length mismatch between timescale_extra and data_extra: {len(timescale_extra)} vs {len(ecg_data)}. Correcting for it.")
+            length = len(ecg_data)
+            timescale_extra = timescale_extra[:length]        
+
+        if self.dataset_intra.selected_channel_index_ecg is not None:
+            # scale the ECG data to match the amplitude of the LFP channel for better visualization
+            ptp_lfp = np.ptp(data_intra) / 2
+            ptp_ecg = np.ptp(ecg_data)
+            factor = ptp_lfp/ptp_ecg
+            ecg_data_scaled = ecg_data * factor
+            ecg_data_to_plot = ecg_data_scaled
+        else:
+            ecg_data_to_plot = ecg_data
+
+        self.ax_overlapped.plot(
+             timescale_extra, ecg_data_to_plot, color='#90EE90', 
+             label='External ECG channel'
+             )
         self.ax_overlapped.legend(loc='upper left')
         self.canvas_overlapped.draw()
         self.btn_detect_r_peaks.setEnabled(True)
         self.btn_manual_override.setEnabled(True)
-
 
 def plot_scatter_channel_intra_sf(self):
     """Plot scatter plot of the selected channel data."""
