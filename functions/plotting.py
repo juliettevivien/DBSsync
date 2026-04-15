@@ -298,9 +298,9 @@ def plot_overlapped_channels_ecg(self):
              label='External ECG channel'
              )
         self.ax_overlapped.legend(loc='upper left')
-        self.canvas_overlapped.draw()
-        self.btn_detect_r_peaks.setEnabled(True)
-        self.btn_manual_override.setEnabled(True)
+    self.canvas_overlapped.draw()
+    self.btn_detect_r_peaks.setEnabled(True)
+    self.btn_manual_override.setEnabled(True)
 
 def plot_scatter_channel_intra_sf(self):
     """Plot scatter plot of the selected channel data."""
