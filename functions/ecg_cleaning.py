@@ -520,12 +520,14 @@ def find_r_peaks_based_on_ext_ecg(
     for peak in lfp_peak_indices:
         start = peak - pre_samples
         end = peak + post_samples
-
+        if np.isnan(full_data[start:end]).any():
+            print(f"Skipping peak at {peak} due to NaNs in the epoch")
+            continue
         if (
             start >= last_peak_start*self.dataset_intra.sf
             ) and (
                 end < first_peak_end*self.dataset_intra.sf
-            ):  # Ensure we don't take the peaks that are in the stimulation pulses
+            ):  # Ensure we don't take the peaks that are in the stimulation pulses            
             epochs.append(full_data[start:end])
 
     epochs = np.array(epochs)
@@ -832,6 +834,16 @@ def find_r_peaks_in_lfp_channel(
             p for p in final_peaks
             if not any(start <= (p / self.dataset_intra.sf) <= end for start, end in self.exclusion_periods)
         ]
+
+    # check that no peak is close to NaN values, if yes, remove them
+    for peak in final_peaks:
+        start = peak - pre_samples
+        end = peak + post_samples
+        if start < 0 or end >= len(full_data):
+            continue
+        if np.isnan(full_data[start:end]).any():
+            final_peaks = final_peaks[final_peaks != peak]
+
 
     # plot the detected peaks
     self.canvas_detected_peaks.setEnabled(True)
