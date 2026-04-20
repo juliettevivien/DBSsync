@@ -836,14 +836,16 @@ def find_r_peaks_in_lfp_channel(
         ]
 
     # check that no peak is close to NaN values, if yes, remove them
+    peaks_to_remove = []
     for peak in final_peaks:
         start = peak - pre_samples
         end = peak + post_samples
         if start < 0 or end >= len(full_data):
             continue
         if np.isnan(full_data[start:end]).any():
-            final_peaks = final_peaks[final_peaks != peak]
-
+            peaks_to_remove.append(peak)
+            
+    final_peaks = [p for p in final_peaks if p not in peaks_to_remove]
 
     # plot the detected peaks
     self.canvas_detected_peaks.setEnabled(True)
