@@ -164,11 +164,11 @@ section {
     transition: top 0.3s ease, transform 0.3s ease; /* Smooth transition */
 }
 
-a[href="#figure1"], a[href="#figure2"], a[href="#figure3"], a[href="#figure4"] {
+a[href="#screenshot1"], a[href="#screenshot2"], a[href="#screenshot3"], a[href="#screenshot4"], a[href="#screenshot5"] {
     text-decoration: underline;
 }
 
-a[href="#figure1"]:hover, a[href="#figure2"]:hover, a[href="#figure3"]:hover, a[href="#figure4"]:hover {
+a[href="#screenshot1"]:hover, a[href="#screenshot2"]:hover, a[href="#screenshot3"]:hover, a[href="#screenshot4"]:hover, a[href="#screenshot5"]:hover {
     text-decoration: none;
 }
 

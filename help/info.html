@@ -142,10 +142,10 @@
                                     detecting them.
                                 </li><br>
                                 <li>
-                                    Detect the first artifact, either by using the automatic or the manual method. See on the <a href=#figure1>figure 1</a> below which sample should be detected as the start of the artifact for a reliable synchronization.
+                                    Detect the first artifact, either by using the automatic or the manual method. See on the <a href=#screenshot1>screenshot 1</a> below which sample should be detected as the start of the artifact for a reliable synchronization.
                                 </li><br>
                             </ol>
-                            <h5 id="figure1">Figure 1: Screenshot of the GUI's Home Page.</h5>
+                            <h5 id="screenshot1">Screenshot 1: GUI's Home Page.</h5>
                             <img src="images/main-window.png" alt="Screenshot of the GUI's Home Page" class="gui-screenshot">
                             <p class="img-legend">On the left side is the panel 
                                 about the intracranial recording, on the right side is the panel for the external 
@@ -173,7 +173,7 @@
                                         idea to check for packet loss in the intracranial data. Try loading directly 
                                         the .JSON file if this wasn't the case yet, as DBSsync automatically detects and corrects for packet loss.</li>
                                     <li> If the absolute value of the timeshift is smaller but still higher than 10ms 
-                                        (see <a href=#figure2>figure 2</a> for an example), adjust 
+                                        (see <a href=#screenshot2>screenshot 2</a> for an example), adjust 
                                         effective sampling frequency of the intracranial data.</li>
                                     <li> IMPORTANT: sampling frequency SHOULD NOT be adjusted if the timeshift is >200ms 
                                         because this is a sign of packet loss, not of inaccurate sampling frequency. 
@@ -181,7 +181,7 @@
                                         before synchronizing again and correcting the sampling frequency.</li>
                                 </ul>    
                             </li>
-                            <h5 id="figure2">Figure 2: Screenshot of the GUI's Timeshift Analysis page.</h5>
+                            <h5 id="screenshot2">Screenshot 2: GUI's Timeshift Analysis page.</h5>
                             <img src="images/timeshift-example.png" alt="Screenshot of the GUI's Timeshift Analysis page" class="gui-screenshot">
                             <p class="img-legend">
                                 In this example, artifacts were manually selected in the intracranial and external
@@ -195,9 +195,9 @@
                                 <h4><b>Effective Sampling Frequency Correction</b></h4>
                                 To calculate the effective sampling frequency of the intracranial data, click on 
                                 "Effective sampling frequency correction". In this window, both the intracranial and the 
-                                external channels are plotted (see <a href=#figure3>figure 3</a> below for an example).
+                                external channels are plotted (see <a href=#screenshot3>screenshot 3</a> below for an example).
                                 The first and last artifacts should be manually detected in each channel (see 
-                                <a href=#figure4>figure 4</a> below for an example).
+                                <a href=#screenshot4>screenshot 4</a> below for an example).
                                 The effective sampling frequency is calculated as the number of samples between 
                                 the two artifacts (in the intracranial signal) divided by the time difference between
                                 the last and the first artifact (in the external signal). Once calculated, this "effective"
@@ -207,14 +207,14 @@
                                 The corrected data can also be plotted again in the timeshift analysis window to check if the 
                                 synchronization is now correct (timeshift should be close to 0 after correction).                      
                             </li>
-                            <h5 id="figure3">Figure 3: Screenshot of the GUI's Effective Sampling frequency window.</h5>
-                            <img src="images/eff-sf-window.png" alt="Screenshot of the GUI's effective sampling frequency window" class="gui-screenshot">
+                            <h5 id="screenshot3">Screenshot 3: GUI's Effective Sampling frequency window.</h5>
+                            <img src="images/eff-sf-window.png" alt="GUI's effective sampling frequency window" class="gui-screenshot">
                             <p class="img-legend">
                                 On the left side is the panel about the intracranial recording, on the right 
                                 side is the panel for the external recording. The signal of each channel is automatically 
                                 plotted as a scatter plot to facilitate manual selection of the first and last artifact in each channel.
                             </p><br>                         
-                            <h5 id="figure4">Figure 4: Calculation of the effective sampling frequency of the intracranial signal.</h5>
+                            <h5 id="screenshot4">Screenshot 4: Calculation of the effective sampling frequency of the intracranial signal.</h5>
                             <img src="images/eff-sf-calculation.png" alt="Screenshot of how to calculate the effective sampling frequency of the intracranial signal" class="gui-screenshot">
                             <p class="img-legend">
                                 Red crosses highlight manual selection of the last artifact in each recording: it should correspond 
@@ -227,7 +227,7 @@
                             <li id = "ecgcleaning">
                                 <h4><b>ECG Artifact Cleaning</b></h4>
                                 Optional: clean ECG artifacts in the intracranial data.
-                                <h5 id="figure5">Figure 5: Screenshot of the GUI's ECG cleaning window.</h5>
+                                <h5 id="screenshot5">Screenshot 5: Screenshot of the GUI's ECG cleaning window.</h5>
                                 <img src="images/ecg-cleaning-window.png" alt="Screenshot showing the main steps performed in the GUI and the automatic plots displayed" class="gui-screenshot">
                                 <p class="img-legend">
                                     In this example the ECG artifacts were detected in the intracranial data using an external ECG channel to help detection.
