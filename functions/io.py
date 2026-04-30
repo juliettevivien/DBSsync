@@ -295,8 +295,13 @@ def load_json_file(self, file_name: str):
                 right_stim_resampled = right_stim_resampled[-lfp_data_length:]            
             left_stim_resampled_scaled = np.array(left_stim_resampled) #* 1e-6
             right_stim_resampled_scaled = np.array(right_stim_resampled) #* 1e-6
-            data_arrays.append(left_stim_resampled_scaled)
-            data_arrays.append(right_stim_resampled_scaled)
+            # data_arrays.append(left_stim_resampled_scaled)
+            # data_arrays.append(right_stim_resampled_scaled)
+            # only keep stim channel is lfp channel present:
+            if any("LEFT" in ch for ch in ch_names):
+                data_arrays.append(left_stim_resampled_scaled)
+            if any("RIGHT" in ch for ch in ch_names):
+                data_arrays.append(right_stim_resampled_scaled)
 
             info = mne.create_info(
             ch_names=ch_names + stim_ch_names,
