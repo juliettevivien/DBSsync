@@ -222,7 +222,7 @@ def load_json_file(self, file_name: str):
                 channels.append(channel)
                 ticks_in_ms = streamings_dict[streaming_id][channel]['TicksInMses']
                 print(f"ticks_in_ms data type: {type(ticks_in_ms)}")
-                print(f"ticks_in_ms: {ticks_in_ms}")
+                # print(f"ticks_in_ms: {ticks_in_ms}")
                 rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
                 print(f"rec_dur_ms: {rec_dur_ms}")
                 rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
@@ -300,9 +300,8 @@ def load_json_file(self, file_name: str):
         BrainSenseRaws = {}
 
         print(f"streamings_dict keys: {streamings_dict.keys()}")
-
         for i, stream in enumerate(streamings_dict.keys()):
-            print(f"Processing BrainSenseRaws for {stream}...")
+            print(f"Processing BrainSenseRaws for {stream}...")  
             #stream_dict = {}
             ch_names = []
             stim_ch_names = []
@@ -368,10 +367,14 @@ def load_json_file(self, file_name: str):
                 right_stim_resampled = right_stim_resampled[-lfp_data_length:]            
             left_stim_resampled_scaled = np.array(left_stim_resampled) #* 1e-6
             right_stim_resampled_scaled = np.array(right_stim_resampled) #* 1e-6
-            data_arrays.append(left_stim_resampled_scaled)
-            data_arrays.append(right_stim_resampled_scaled)
+            # only keep stim channel is lfp channel present:
+            if any("LEFT" in ch for ch in ch_names):
+                data_arrays.append(left_stim_resampled_scaled)
+            if any("RIGHT" in ch for ch in ch_names):
+                data_arrays.append(right_stim_resampled_scaled)
 
             print("Creating MNE info...")
+            print(f"ch_names: {ch_names+stim_ch_names}")  # ch_names: ['Channel_ONE_THREE_RIGHT', 'STIM_Channel_ONE_THREE_RIGHT']
             info = mne.create_info(
             ch_names=ch_names + stim_ch_names,
             sfreq=250,  # Percept sampling frequency is by default 250Hz
