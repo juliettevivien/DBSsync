@@ -10,14 +10,14 @@ debugpy @ file:///D:/bld/debugpy_1728594273347/work
 decorator @ file:///home/conda/feedstock_root/build_artifacts/decorator_1641555617451/work
 exceptiongroup @ file:///home/conda/feedstock_root/build_artifacts/exceptiongroup_1720869315914/work
 executing @ file:///home/conda/feedstock_root/build_artifacts/executing_1725214404607/work
-fonttools==4.54.1
+fonttools==4.60.2
 h5py==3.12.1
 idna==3.10
 importlib_metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1726082825846/work
 ipykernel @ file:///D:/bld/ipykernel_1719845595208/work
 ipython @ file:///D:/bld/ipython_1727944871745/work
 jedi @ file:///home/conda/feedstock_root/build_artifacts/jedi_1696326070614/work
-Jinja2==3.1.4
+Jinja2==3.1.6
 jupyter_client @ file:///home/conda/feedstock_root/build_artifacts/jupyter_client_1726610684920/work
 jupyter_core @ file:///D:/bld/jupyter_core_1710257272359/work
 kiwisolver==1.4.7
@@ -33,7 +33,7 @@ pandas @ file:///D:/bld/pandas_1726878561601/work
 parso @ file:///home/conda/feedstock_root/build_artifacts/parso_1712320355065/work
 pefile==2023.2.7
 pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1602536217715/work
-pillow==11.0.0
+pillow==12.2.0
 platformdirs @ file:///home/conda/feedstock_root/build_artifacts/platformdirs_1726613481435/work
 pooch==1.8.2
 prompt_toolkit @ file:///home/conda/feedstock_root/build_artifacts/prompt-toolkit_1727341649933/work
@@ -53,7 +53,7 @@ pywin32==307
 pywin32-ctypes==0.2.3
 pyxdf==1.16.8
 pyzmq @ file:///D:/bld/pyzmq_1728642398422/work
-requests==2.32.3
+requests==2.33.0
 scipy==1.14.1
 six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
 stack-data @ file:///home/conda/feedstock_root/build_artifacts/stack_data_1669632077133/work
@@ -62,7 +62,7 @@ tqdm==4.66.5
 traitlets @ file:///home/conda/feedstock_root/build_artifacts/traitlets_1713535121073/work
 typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/typing_extensions_1717802530399/work
 tzdata @ file:///home/conda/feedstock_root/build_artifacts/python-tzdata_1727140567071/work
-urllib3==2.2.3
+urllib3==2.6.3
 wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1704731205417/work
 xmltodict==0.14.2
 zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1726248574750/work
