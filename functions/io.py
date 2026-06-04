@@ -69,35 +69,119 @@ def load_int_file(self):
     if self.config['NoSync'] == True:
         self.btn_choose_int_channel_for_cleaning.setEnabled(True)
 
+# def load_mat_file(self, file_name):
+#     """Load .mat file."""    
+#     try:
+#         # Load the .mat file using mne's read_raw_fieldtrip
+#         raw_data = read_raw_fieldtrip(
+#             file_name, info={}, data_name="data"
+#             )
+#         self.dataset_intra.raw_data = raw_data  # Assign to dataset
+#         self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
+#         self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
+#         # self.dataset_intra.times = np.linspace(
+#         #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
+#         #     raw_data.get_data().shape[1]
+#         #     )
+#         end_time = raw_data.get_data().shape[1] / self.dataset_intra.sf
+#         self.dataset_intra.times = np.arange(0, end_time, 0.004)
+#         self.file_label_intra.setText(
+#             f"Selected File: {basename(file_name)}"
+#             )
+#         self.dataset_intra.file_name = basename(file_name)
+#         self.dataset_intra.file_path = dirname(file_name)
+
+#         # Show channel selection and plot buttons for intracranial
+#         self.btn_select_channel_intra.setEnabled(True)
+#         self.channel_label_intra.setEnabled(True)
+
+#     except Exception as e:
+#         QMessageBox.critical(self, "Error", f"Failed to load .mat file: {e}")
+
 def load_mat_file(self, file_name):
-    """Load .mat file."""    
+    """
+    Load .mat file. 
+    1. Tries standard mne.io.read_raw_fieldtrip (for other pipelines).
+    2. Falls back to creating an MNE RawArray object for custom files.
+    """
     try:
-        # Load the .mat file using mne's read_raw_fieldtrip
-        raw_data = read_raw_fieldtrip(
-            file_name, info={}, data_name="data"
-            )
-        self.dataset_intra.raw_data = raw_data  # Assign to dataset
-        self.dataset_intra.sf = raw_data.info["sfreq"]  # Assign sampling frequency
-        self.dataset_intra.ch_names = raw_data.ch_names  # Assign channel names#
-        # self.dataset_intra.times = np.linspace(
-        #     0, raw_data.get_data().shape[1]/self.dataset_intra.sf, 
-        #     raw_data.get_data().shape[1]
-        #     )
+        # --- Attempt 1: Standard FieldTrip Loading ---
+        raw_data = read_raw_fieldtrip(file_name, info={}, data_name="data")
+        
+        self.dataset_intra.raw_data = raw_data
+        self.dataset_intra.sf = raw_data.info["sfreq"]
+        self.dataset_intra.ch_names = raw_data.ch_names
         end_time = raw_data.get_data().shape[1] / self.dataset_intra.sf
         self.dataset_intra.times = np.arange(0, end_time, 0.004)
-        self.file_label_intra.setText(
-            f"Selected File: {basename(file_name)}"
-            )
+        
+        self.file_label_intra.setText(f"Selected File: {basename(file_name)}")
         self.dataset_intra.file_name = basename(file_name)
         self.dataset_intra.file_path = dirname(file_name)
-
-        # Show channel selection and plot buttons for intracranial
+        
         self.btn_select_channel_intra.setEnabled(True)
         self.channel_label_intra.setEnabled(True)
 
     except Exception as e:
-        QMessageBox.critical(self, "Error", f"Failed to load .mat file: {e}")
+        # --- Attempt 2: Manual Parsing & MNE RawArray Creation ---
+        try:
+            from scipy.io import loadmat
+            import mne
+            
+            mat_content = loadmat(file_name, squeeze_me=True)
+            
+            if "data" not in mat_content:
+                raise ValueError("File does not contain 'data' key.")
+            
+            raw_array = mat_content["data"]
+            fsample = mat_content.get("fsample", 1000.0)
+            labels = mat_content.get("label", None)
+            
+            # Handle potential 'time' column added by synchronize_datasets_as_mat
+            if raw_array.ndim == 2 and raw_array.shape[1] > 1:
+                last_col = raw_array[:, -1]
+                # Check if the last column is monotonically increasing (time vector)
+                if np.all(np.diff(last_col) > 0):
+                    # Remove the time column
+                    raw_array = raw_array[:, :-1]
+                    # Reconstruct time vector based on sampling frequency
+                    self.dataset_intra.times = np.arange(0, raw_array.shape[1] / fsample, 1/fsample)
+                else:
+                    # No time column detected
+                    self.dataset_intra.times = np.arange(0, raw_array.shape[1] / fsample, 0.004)
+            else:
+                self.dataset_intra.times = np.arange(0, raw_array.shape[1] / fsample, 0.004)
 
+            # --- CRITICAL FIX: Create an MNE RawArray object ---
+            # This ensures raw_data is an MNE object, preventing "ambiguous truth value" errors
+            info = mne.create_info(ch_names=labels.flatten().tolist() if labels is not None else [f"Ch{i}" for i in range(raw_array.shape[0])], 
+                                   sfreq=fsample, 
+                                   ch_types='eeg') # Assuming EEG; change if necessary (e.g., 'misc', 'eog')
+            
+            # Create the RawArray object
+            raw_data = mne.io.RawArray(raw_array, info)
+            
+            # Assign to dataset
+            self.dataset_intra.raw_data = raw_data
+            self.dataset_intra.sf = raw_data.info["sfreq"]
+            self.dataset_intra.ch_names = raw_data.ch_names
+            
+            # Re-calculate times to match the object's internal logic (optional but consistent)
+            end_time = raw_data.get_data().shape[1] / self.dataset_intra.sf
+            self.dataset_intra.times = np.arange(0, end_time, 0.004)
+            
+            # Update UI
+            self.file_label_intra.setText(f"Selected File: {basename(file_name)}")
+            self.dataset_intra.file_name = basename(file_name)
+            self.dataset_intra.file_path = dirname(file_name)
+            
+            self.btn_select_channel_intra.setEnabled(True)
+            self.channel_label_intra.setEnabled(True)
+            
+            print(f"Loaded {file_name} using MNE RawArray fallback.")
+
+        except Exception as fallback_error:
+            error_msg = f"Failed to load .mat file:\n\n1. Standard loader error: {e}\n\n2. Fallback loader error: {fallback_error}"
+            QMessageBox.critical(self, "Error", error_msg)
 
 
 def load_fif_file_int(
