@@ -719,7 +719,7 @@ class SyncGUI(QMainWindow):
         self.btn_start_ecg_cleaning_interpolation.setEnabled(False) # Should be enabled only when R-peaks have been detected
 
         # Insert button for the template substraction method
-        self.btn_start_ecg_cleaning_template_sub = Button("Template substraction method", "lightyellow")
+        self.btn_start_ecg_cleaning_template_sub = Button("Template subtraction method", "lightyellow")
         self.btn_start_ecg_cleaning_template_sub.clicked.connect(partial(start_ecg_cleaning_template_sub, self))
         self.btn_start_ecg_cleaning_template_sub.setEnabled(False)  # Should be enabled only when R-peaks have been detected
 
