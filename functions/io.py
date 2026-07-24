@@ -321,72 +321,227 @@ def load_json_file(self, file_name: str):
         # based on the function check_and_correct_missing_packets()
         BrainSenseRawsCorrected, streamings_df_corrected = functions.utils.check_and_correct_missing_packets(streamings_dict, BrainSenseRaws, streamings_df) 
 
+        # Reproduce BS streaming processing but adapt for IS and add to the existing dataframe:
+        list_of_is = j['IndefiniteStreaming']
+
+        is_dict = defaultdict(lambda: defaultdict(dict))
+            
+        stream_times = [0]
+        first_packet_time = None
+        is_stream_count = 1
+
+        for i_stream, dat in enumerate(list_of_is):
+            print(f"Stream {i_stream} keys: {dat.keys()}")  # DEBUG
+            first_packet_time = dat['FirstPacketDateTime']
+
+            if first_packet_time != stream_times[-1] or i_stream == 0:
+                # new stream
+                is_dict[f'IS_{is_stream_count}'][f'Channel_{dat["Channel"]}'] = {
+                    'FirstPacketDateTime': first_packet_time,
+                    'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
+                    'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
+                    'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
+                    'TimeDomainData': dat['TimeDomainData'], 
+                    'SampleRateInHz': dat['SampleRateInHz']
+                }
+                is_stream_count += 1
+            else:
+                # other channel from same stream
+                is_dict[f'IS_{is_stream_count - 1}'][f'Channel_{dat["Channel"]}'] = {
+                    'FirstPacketDateTime': dat['FirstPacketDateTime'],
+                    'GlobalSequences': functions.utils.convert_list_string_floats(dat['GlobalSequences']),
+                    'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
+                    'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
+                    'TimeDomainData': dat['TimeDomainData'],
+                    'SampleRateInHz': dat['SampleRateInHz']
+                }
+            stream_times.append(first_packet_time)
+
+        #  create a dataframe with all streamings and their channels
+        ends = []
+        prev_streaming_id = None
+        stream_count = -1
+        #prev_stream_last_stim_ticks = None
+
+        # is_streamings_df = pd.DataFrame(columns=[
+        #     'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
+        #     'LFP Recording duration'
+        #     ])
+        for streaming_id in is_dict.keys():
+            stream_count += 1
+            channels = []
+            time_since_last_rec_first_packet = None
+            time_since_last_rec_ticks = None
+            for channel in is_dict[streaming_id].keys():
+                channels.append(channel)
+
+                ticks_in_ms = is_dict[streaming_id][channel]['TicksInMses']
+                rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
+                rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
+                dt_str = is_dict[streaming_id][channel]['FirstPacketDateTime']
+                dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                
+                # compute rec_end_time using dt_obj + rec_duration: 
+                rec_end_time = dt_obj +  timedelta(minutes=rec_dur_min, seconds=rec_dur_sec, milliseconds=rec_dur_msec)
+
+                if ends and streaming_id == prev_streaming_id:
+                    time_since_last_rec = timedelta(0)
+                elif ends:
+                    time_since_last_rec = dt_obj - ends[-1]
+                else:
+                    time_since_last_rec = timedelta(0)
+
+                dt1_parsed = datetime.strptime(is_dict[streaming_id][channel]['FirstPacketDateTime'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                
+                # Simply output it in the same visual format as dt2
+                dt1_reformatted = dt1_parsed.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # trim to .XXX milliseconds
+                
+                if time_since_last_rec_first_packet is None:
+                    time_since_last_rec_first_packet = functions.utils.format_timedelta(time_since_last_rec)
+                if time_since_last_rec_ticks is None:
+                    if streaming_id != 'IS_1':  # for the first streaming, we don't have a previous streaming to compare to
+                        channel_previous = list(is_dict[prev_streaming_id].keys())[0]
+                    else:
+                        channel_previous = channel    
+                    time_since_last_rec_ticks = functions.utils.format_timedelta(timedelta(milliseconds=(ticks_in_ms[0] - (is_dict[prev_streaming_id][channel_previous]['TicksInMses'][-1])) )) if ends and streaming_id != prev_streaming_id else '0 days, 0h, 0min, 0s, 0ms'
+                prev_streaming_id = streaming_id
+                # convert time_since_last_rec in milliseconds
+                #time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
+                #time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
+
+                ends.append(rec_end_time)
+
+            new_row = pd.DataFrame([{
+            'Streaming id': streaming_id,
+            'LFP Channels': channels,
+            'LFP Recording start': dt1_reformatted,
+            'LFP Recording end': rec_end_time,
+            'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
+            'First packet time (ms)': ticks_in_ms[0],
+            'Last packet time (ms)': ticks_in_ms[-1],
+            }])
+            streamings_df_corrected = pd.concat([streamings_df_corrected, new_row], ignore_index=True)
+
+        for i, stream in enumerate(is_dict.keys()):
+            #stream_dict = {}
+            ch_names = []
+            stim_ch_names = []
+            data_arrays = []
+            raw = is_dict[stream]
+            for ch in raw.keys(): 
+                ch_data = raw[ch]['TimeDomainData']
+                ch_names.append(ch)
+                data_arrays.append(np.array(ch_data)) #* 1e-6)
+
+            info = mne.create_info(
+            ch_names=ch_names,
+            sfreq=250,  # Percept sampling frequency is by default 250Hz
+            ch_types=['eeg'] * len(ch_names)
+            )
+
+            raw = mne.io.RawArray(
+                data = np.array(data_arrays),
+                info = info
+            )
+            BrainSenseRawsCorrected[stream] = raw   
+
         # Create a pop-up window to show the data frame and let user select the stream they want to load
         selected_streams = self.show_stream_selection_dialog(streamings_df_corrected)
         if not selected_streams:
             QMessageBox.warning(self, "No Selection", "No stream was selected.")
             return
 
+        # Order the selected streams based on 'LFP Recording start' from streamings_df_corrected:
+        ordered_selected_streams = (
+            streamings_df_corrected[
+                streamings_df_corrected["Streaming id"].isin(selected_streams)
+            ]
+            .sort_values("LFP Recording start")["Streaming id"]
+            .tolist()
+        )
+
         # Filter BrainSenseRaws based on user selection
-        BrainSenseRawsCorrected = {k: v for k, v in BrainSenseRawsCorrected.items() if k in selected_streams}
+        BrainSenseRawsCorrected = {k: v for k, v in BrainSenseRawsCorrected.items() if k in ordered_selected_streams}
 
         # Check how many streams were selected
-        if len(selected_streams) > 1:
-            QMessageBox.warning(
-                self, "Multiple Streams Selected", 
-                f"{len(selected_streams)} streams were selected and will be concatenated. \n"
-                f"The following streams will be concatenated: {', '.join(selected_streams)}"
-                )
+        if len(ordered_selected_streams) > 1:
+            print(f"Multiple streams selected: {ordered_selected_streams}. They will be concatenated with NaNs for the time gaps.")
             # calculate diff between end time of each stream and start time of next stream
-            for i in range(len(selected_streams) - 1):
+            for i in range(len(ordered_selected_streams) - 1):
+                stream_type_next = 'IS' if 'IS' in ordered_selected_streams[i + 1] else 'BS'
+                # stream_type_current = 'IS' if 'IS' in ordered_selected_streams[i] else 'BS'
                 end_time_current = streamings_df_corrected.loc[
-                    streamings_df_corrected['Streaming id'] == selected_streams[i], 
+                    streamings_df_corrected['Streaming id'] == ordered_selected_streams[i], 
                     'Last packet time (ms)'
                     ].values[0]
                 start_time_next = streamings_df_corrected.loc[
-                    streamings_df_corrected['Streaming id'] == selected_streams[i + 1], 
+                    streamings_df_corrected['Streaming id'] == ordered_selected_streams[i + 1], 
                     'First packet time (ms)'
                     ].values[0]
-                diff = (start_time_next - 250) - end_time_current
+                if stream_type_next == 'IS': # first packet of IS stream is not 250ms long, it only contains 38 samples, so we only need to subtract 38*4ms = 152ms from the start time of the next stream to get the actual time gap
+                    diff = (start_time_next - 152) - end_time_current
+                else:    
+                    diff = (start_time_next - 250) - end_time_current
                 # check if there was a clock reset (i.e., negative diff)
                 if diff < 0:
-                    print(f'A clock reset was detected between {selected_streams[i]} and {selected_streams[i + 1]}. Adding 3276800ms to the next stream timestamps.')
+                    print(f'A clock reset was detected between {ordered_selected_streams[i]} and {ordered_selected_streams[i + 1]}. Adding 3276800ms to the next stream timestamps.')
                     start_time_next += 3276800
                     # recalculate diff
-                    diff = (start_time_next - 250) - end_time_current
-                print(f'Time gap between {selected_streams[i]} and {selected_streams[i + 1]}: {diff} ms')
+                    if stream_type_next == 'IS': # first packet of IS stream is not 250ms long, it only contains 38 samples, so we only need to subtract 38*4ms = 152ms from the start time of the next stream to get the actual time gap
+                        diff = (start_time_next - 152) - end_time_current
+                    else:    
+                        diff = (start_time_next - 250) - end_time_current
+                print(f'Time gap between {ordered_selected_streams[i]} and {ordered_selected_streams[i + 1]}: {diff} ms')
 
-                # check that duration of second stream matches number of samples
-                # sometimes, packets have an irregular size, leading to a mismatch between expected duration and actual number of samples
-                # check if first packet sizes is always either 62 or 63 samples to get real start time
-                packet_sizes = streamings_dict[selected_streams[i + 1]][list(streamings_dict[selected_streams[i + 1]].keys())[0]]['GlobalPacketSizes']
-                # get sizes that are not 62 or 63
-                if packet_sizes[0] not in [62, 63]:
-                    diff -= (packet_sizes[0] - 62) * 4  # each sample is 4ms at 250Hz
-                # irregular_sizes = [size for size in packet_sizes[0] if size not in [62, 63]]
-                # #for size that are not 62 or 63, calculate the difference
-                # if irregular_sizes:
-                #     # assume they should be 62, sum up the "extra samples"
-                #     # when packets have more samples than 62/63, it means that the recording 
-                #     # device actually sent more samples, which should be taken into account 
-                #     # when adding NaN values for concatenation
-                #     total_extra_size = sum([size - 62 for size in irregular_sizes]) 
-                #     print(f'Irregular packet sizes detected in {selected_streams[i + 1]}.')
-                #     diff -= total_extra_size * 4  # each sample is 4ms at 250Hz  # update diff accordingly
+                # # check that duration of second stream matches number of samples
+                # # sometimes, packets have an irregular size, leading to a mismatch between expected duration and actual number of samples
+                # # check if first packet sizes is always either 62 or 63 samples to get real start time
+                # packet_sizes = streamings_dict[ordered_selected_streams[i + 1]][list(streamings_dict[ordered_selected_streams[i + 1]].keys())[0]]['GlobalPacketSizes']
+                # # get sizes that are not 62 or 63
+                # if packet_sizes[0] not in [62, 63]:
+                #     diff -= (packet_sizes[0] - 62) * 4  # each sample is 4ms at 250Hz
 
                 # Concatenate the selected streams by adding NaNs for the time gap
-                first_temp = BrainSenseRawsCorrected[selected_streams[i]].get_data()
-                second_temp = BrainSenseRawsCorrected[selected_streams[i + 1]].get_data()
+                first_temp = BrainSenseRawsCorrected[ordered_selected_streams[i]].get_data()     
+                second_temp = BrainSenseRawsCorrected[ordered_selected_streams[i + 1]].get_data()
                 n_missing_samples = int(diff / 4)  # since sampling rate is 250Hz, each sample is 4ms
+
+                # check number of channels in first_temp and second_temp, if they are different, add NaNs to the one with fewer channels
+                if first_temp.shape[0] < second_temp.shape[0]:
+                    n_channels_to_add = second_temp.shape[0] - first_temp.shape[0]
+                    nan_padding_channels = np.full((n_channels_to_add, first_temp.shape[1]), np.nan)
+                    first_temp = np.concatenate((first_temp, nan_padding_channels), axis=0)
+                if second_temp.shape[0] < first_temp.shape[0]:
+                    n_channels_to_add = first_temp.shape[0] - second_temp.shape[0]
+                    nan_padding_channels = np.full((n_channels_to_add, second_temp.shape[1]), np.nan)
+                    second_temp = np.concatenate((second_temp, nan_padding_channels), axis=0)    
                 n_channels = first_temp.shape[0]
                 nan_padding = np.full((n_channels, n_missing_samples), np.nan)
                 concatenated_data = np.concatenate((first_temp, nan_padding, second_temp), axis=1)
-                info = BrainSenseRawsCorrected[selected_streams[i]].info
-                BrainSenseRawsCorrected[selected_streams[i + 1]] = mne.io.RawArray(concatenated_data, info)
+                # info = ISRaws[ordered_selected_streams[i]].info
+                # get the channel names from the IS, channel names are always the same I think?
+                # if 'IS' in ordered_selected_streams[i]:
+                #     ch_names = BrainSenseRawsCorrected[ordered_selected_streams[i]].info['ch_names']
+                # elif 'IS' in ordered_selected_streams[i + 1]:
+                #     ch_names = BrainSenseRawsCorrected[ordered_selected_streams[i + 1]].info['ch_names']  
+                # else:
+                #     print(f"Warning: No IS stream found in {ordered_selected_streams[i]} or {ordered_selected_streams[i + 1]}.")      
+                ch_names = ['Channel_ZERO_THREE_LEFT',
+                    'Channel_ONE_THREE_LEFT',
+                    'Channel_ZERO_TWO_LEFT',
+                    'Channel_ZERO_THREE_RIGHT',
+                    'Channel_ONE_THREE_RIGHT',
+                    'Channel_ZERO_TWO_RIGHT']
+                info = mne.create_info(
+                    ch_names=ch_names,
+                    sfreq=250,
+                    ch_types=['eeg'] * n_channels
+                )
+                BrainSenseRawsCorrected[ordered_selected_streams[i + 1]] = mne.io.RawArray(concatenated_data, info)
             # After concatenation, keep only the last stream as it contains all data
-            selected_stream_id = selected_streams[-1]
+            selected_stream_id = ordered_selected_streams[-1]
         else:
-            selected_stream_id = selected_streams[0]
+            selected_stream_id = ordered_selected_streams[0]
 
         # Assign the corresponding MNE Raw object to dataset
         self.dataset_intra.raw_data = BrainSenseRawsCorrected[selected_stream_id]
