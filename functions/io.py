@@ -149,7 +149,8 @@ def load_json_file(self, file_name: str):
                     'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
                     'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
                     'TimeDomainData': dat['TimeDomainData'], 
-                    'SampleRateInHz': dat['SampleRateInHz']
+                    'SampleRateInHz': dat['SampleRateInHz'],
+                    'FirstPacketDateTimeOffsetInSeconds': dat['FirstPacketDateTimeOffsetInSeconds']
                 }
                 stream_count += 1
             else:
@@ -160,7 +161,8 @@ def load_json_file(self, file_name: str):
                     'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
                     'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
                     'TimeDomainData': dat['TimeDomainData'],
-                    'SampleRateInHz': dat['SampleRateInHz']
+                    'SampleRateInHz': dat['SampleRateInHz'],
+                    'FirstPacketDateTimeOffsetInSeconds': dat['FirstPacketDateTimeOffsetInSeconds']
                 }
             stream_times.append(first_packet_time)
 
@@ -172,7 +174,7 @@ def load_json_file(self, file_name: str):
 
         streamings_df = pd.DataFrame(columns=[
             'Streaming id', 'LFP Channels', 'LFP Recording start', 'LFP Recording end', 
-            'LFP Recording duration'
+            'LFP Recording duration', 'FirstPacketDateTimeOffsetInSeconds'
             ])
         for streaming_id in streamings_dict.keys():
             stream_count += 1
@@ -186,7 +188,9 @@ def load_json_file(self, file_name: str):
                 rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
                 rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
                 dt_str = streamings_dict[streaming_id][channel]['FirstPacketDateTime']
+                dt_str_offset = streamings_dict[streaming_id][channel]['FirstPacketDateTimeOffsetInSeconds'] # in seconds
                 dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                # duration_ms = (len(streamings_dict[streaming_id][channel]['TimeDomainData']) / streamings_dict[streaming_id][channel]['SampleRateInHz']) * 1000  # convert to milliseconds
                 
                 # compute rec_end_time using dt_obj + rec_duration: 
                 rec_end_time = dt_obj +  timedelta(minutes=rec_dur_min, seconds=rec_dur_sec, milliseconds=rec_dur_msec)
@@ -215,6 +219,10 @@ def load_json_file(self, file_name: str):
                 # convert time_since_last_rec in milliseconds
                 #time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
                 #time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
+                
+                size_first_packet_ms = streamings_dict[streaming_id][channel]['GlobalPacketSizes'][0] * 4  # first packet size in ms, each sample is 4ms at 250Hz
+                last_packet_time = (dt_str_offset*1000) + (ticks_in_ms[-1] - (ticks_in_ms[0] - size_first_packet_ms))  # last packet time in seconds since first packet
+                # last_packet_time = (dt_str_offset*1000) + duration_ms  # last packet time in seconds since first packet
 
                 ends.append(rec_end_time)
 
@@ -231,7 +239,9 @@ def load_json_file(self, file_name: str):
             'LFP Recording end': rec_end_time,
             'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
             'First packet time (ms)': ticks_in_ms[0],
-            'Last packet time (ms)': ticks_in_ms[-1],
+            # 'Duration (ms)': duration_ms,
+            'FirstPacketDateTimeOffsetInSeconds':  dt_str_offset,
+            'Last packet time (ms)': last_packet_time, #ticks_in_ms[-1],
             }])
             streamings_df = pd.concat([streamings_df, new_row], ignore_index=True)
 
@@ -342,7 +352,8 @@ def load_json_file(self, file_name: str):
                     'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
                     'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
                     'TimeDomainData': dat['TimeDomainData'], 
-                    'SampleRateInHz': dat['SampleRateInHz']
+                    'SampleRateInHz': dat['SampleRateInHz'],
+                    'FirstPacketDateTimeOffsetInSeconds': dat['FirstPacketDateTimeOffsetInSeconds']
                 }
                 is_stream_count += 1
             else:
@@ -353,7 +364,8 @@ def load_json_file(self, file_name: str):
                     'TicksInMses': functions.utils.convert_list_string_floats(dat['TicksInMses']),
                     'GlobalPacketSizes': functions.utils.convert_list_string_floats(dat['GlobalPacketSizes']),
                     'TimeDomainData': dat['TimeDomainData'],
-                    'SampleRateInHz': dat['SampleRateInHz']
+                    'SampleRateInHz': dat['SampleRateInHz'],
+                    'FirstPacketDateTimeOffsetInSeconds': dat['FirstPacketDateTimeOffsetInSeconds']
                 }
             stream_times.append(first_packet_time)
 
@@ -379,6 +391,7 @@ def load_json_file(self, file_name: str):
                 rec_dur_ms = ticks_in_ms[-1] - ticks_in_ms[0] + 250  # add 250 ms for last packet duration
                 rec_dur_min, rec_dur_sec, rec_dur_msec = functions.utils.convert_msec_to_min_sec_msec(rec_dur_ms)
                 dt_str = is_dict[streaming_id][channel]['FirstPacketDateTime']
+                dt_str_offset = is_dict[streaming_id][channel]['FirstPacketDateTimeOffsetInSeconds']
                 dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S.%fZ')
                 
                 # compute rec_end_time using dt_obj + rec_duration: 
@@ -409,6 +422,12 @@ def load_json_file(self, file_name: str):
                 #time_since_last_rec_ticks_ms = functions.utils.time_to_ms(time_since_last_rec_ticks)
                 #time_since_last_rec_first_packet_ms = functions.utils.time_to_ms(time_since_last_rec_first_packet)
 
+                # size_first_packet_ms = (streamings_dict[streaming_id][channel]['GlobalPacketSizes'][0] + streamings_dict[streaming_id][channel]['GlobalPacketSizes'][1] + streamings_dict[streaming_id][channel]['GlobalPacketSizes'][2]) * 4  # first packet size in ms, each sample is 4ms at 250Hz
+                size_first_packet_ms = 456
+                last_packet_time = (dt_str_offset*1000) + (ticks_in_ms[-1] - (ticks_in_ms[0] - size_first_packet_ms))  # last packet time in seconds since first packet  e. g., 456 would come from 3 packets of 38 samples spaced by 4ms each = 456ms
+                # duration_ms = (len(is_dict[streaming_id][channel]['TimeDomainData']) / is_dict[streaming_id][channel]['SampleRateInHz']) * 1000  # convert to milliseconds
+                # last_packet_time = (dt_str_offset*1000) + duration_ms  # last packet time in milliseconds
+
                 ends.append(rec_end_time)
 
             new_row = pd.DataFrame([{
@@ -418,7 +437,9 @@ def load_json_file(self, file_name: str):
             'LFP Recording end': rec_end_time,
             'LFP Recording duration': f'{rec_dur_min} min, {rec_dur_sec} sec, {rec_dur_msec} ms',
             'First packet time (ms)': ticks_in_ms[0],
-            'Last packet time (ms)': ticks_in_ms[-1],
+            # 'Duration (ms)': duration_ms,
+            'FirstPacketDateTimeOffsetInSeconds': dt_str_offset,
+            'Last packet time (ms)': last_packet_time, # ticks_in_ms[-1],
             }])
             streamings_df_corrected = pd.concat([streamings_df_corrected, new_row], ignore_index=True)
 
@@ -443,7 +464,7 @@ def load_json_file(self, file_name: str):
                 data = np.array(data_arrays),
                 info = info
             )
-            BrainSenseRawsCorrected[stream] = raw   
+            BrainSenseRawsCorrected[stream] = raw  
 
         # Create a pop-up window to show the data frame and let user select the stream they want to load
         selected_streams = self.show_stream_selection_dialog(streamings_df_corrected)
@@ -470,18 +491,29 @@ def load_json_file(self, file_name: str):
             for i in range(len(ordered_selected_streams) - 1):
                 stream_type_next = 'IS' if 'IS' in ordered_selected_streams[i + 1] else 'BS'
                 # stream_type_current = 'IS' if 'IS' in ordered_selected_streams[i] else 'BS'
+                # end_time_current = streamings_df_corrected.loc[
+                #     streamings_df_corrected['Streaming id'] == ordered_selected_streams[i], 
+                #     'Last packet time (ms)'
+                #     ].values[0]
+                # start_time_next = streamings_df_corrected.loc[
+                #     streamings_df_corrected['Streaming id'] == ordered_selected_streams[i + 1], 
+                #     'First packet time (ms)'
+                #     ].values[0]
                 end_time_current = streamings_df_corrected.loc[
                     streamings_df_corrected['Streaming id'] == ordered_selected_streams[i], 
                     'Last packet time (ms)'
                     ].values[0]
-                start_time_next = streamings_df_corrected.loc[
+                start_time_next = (streamings_df_corrected.loc[
                     streamings_df_corrected['Streaming id'] == ordered_selected_streams[i + 1], 
-                    'First packet time (ms)'
-                    ].values[0]
-                if stream_type_next == 'IS': # first packet of IS stream is not 250ms long, it only contains 38 samples, so we only need to subtract 38*4ms = 152ms from the start time of the next stream to get the actual time gap
-                    diff = (start_time_next - 152) - end_time_current
-                else:    
-                    diff = (start_time_next - 250) - end_time_current
+                    'FirstPacketDateTimeOffsetInSeconds'
+                    ].values[0])*1000  # convert to ms
+
+                # if stream_type_next == 'IS': # first packet of IS stream is not 250ms long, it contains 3*38 samples, so we only need to subtract 38*4ms = 152ms from the start time of the next stream to get the actual time gap
+                #     diff = (start_time_next - 152) - end_time_current
+                # else:    
+                #     diff = (start_time_next - 250) - end_time_current
+                diff = start_time_next - end_time_current
+
                 # check if there was a clock reset (i.e., negative diff)
                 if diff < 0:
                     print(f'A clock reset was detected between {ordered_selected_streams[i]} and {ordered_selected_streams[i + 1]}. Adding 3276800ms to the next stream timestamps.')
@@ -526,12 +558,15 @@ def load_json_file(self, file_name: str):
                 #     ch_names = BrainSenseRawsCorrected[ordered_selected_streams[i + 1]].info['ch_names']  
                 # else:
                 #     print(f"Warning: No IS stream found in {ordered_selected_streams[i]} or {ordered_selected_streams[i + 1]}.")      
+                # if 'IS' in ordered_selected_streams.any():
                 ch_names = ['Channel_ZERO_THREE_LEFT',
                     'Channel_ONE_THREE_LEFT',
                     'Channel_ZERO_TWO_LEFT',
                     'Channel_ZERO_THREE_RIGHT',
                     'Channel_ONE_THREE_RIGHT',
                     'Channel_ZERO_TWO_RIGHT']
+                # n_channels = len(ch_names)
+
                 info = mne.create_info(
                     ch_names=ch_names,
                     sfreq=250,
