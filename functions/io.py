@@ -141,6 +141,26 @@ def load_json_file(self, file_name: str):
             print(f"Stream {i_stream} keys: {dat.keys()}")  # DEBUG
             first_packet_time = dat['FirstPacketDateTime']
 
+            # Check if the variable 'FirstPacketDateTimeOffsetInSeconds' is available or not (not present in older JSON files)
+            # if not present, artificially create one using 'FirstPacketDateTime'
+            if 'FirstPacketDateTimeOffsetInSeconds' not in dat:
+                print(
+                    f"Stream {i_stream} is missing 'FirstPacketDateTimeOffsetInSeconds', "
+                    "falling back to method 2 (less accurate)."
+                )
+
+                # Convert 'FirstPacketDateTime' to datetime object
+                dt_obj = datetime.strptime(first_packet_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+
+                # Compute seconds since midnight
+                first_packet_time_offset = (
+                    dt_obj.hour * 60 * 60
+                    + dt_obj.minute * 60
+                    + dt_obj.second
+                )
+
+                dat['FirstPacketDateTimeOffsetInSeconds'] = int(first_packet_time_offset)
+
             if first_packet_time != stream_times[-1] or i_stream == 0:
                 # new stream
                 streamings_dict[f'streaming_{stream_count}'][f'Channel_{dat["Channel"]}'] = {
@@ -340,10 +360,33 @@ def load_json_file(self, file_name: str):
         first_packet_time = None
         is_stream_count = 1
 
+        # Define default method to method 1 (uses FirstPacketDateTimeOffsetInSeconds to compute time missing, more accurate)
+        method = 1
+
         for i_stream, dat in enumerate(list_of_is):
             print(f"Stream {i_stream} keys: {dat.keys()}")  # DEBUG
             first_packet_time = dat['FirstPacketDateTime']
 
+            # Check if the variable 'FirstPacketDateTimeOffsetInSeconds' is available or not (not present in older JSON files)
+            # if not present, artificially create one using 'FirstPacketDateTime'
+            if 'FirstPacketDateTimeOffsetInSeconds' not in dat:
+                print(
+                    f"Stream {i_stream} is missing 'FirstPacketDateTimeOffsetInSeconds', "
+                    "falling back to method 2 (less accurate)."
+                )
+
+                # Convert 'FirstPacketDateTime' to datetime object
+                dt_obj = datetime.strptime(first_packet_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+
+                # Compute seconds since midnight
+                first_packet_time_offset = (
+                    dt_obj.hour * 60 * 60
+                    + dt_obj.minute * 60
+                    + dt_obj.second
+                )
+
+                dat['FirstPacketDateTimeOffsetInSeconds'] = int(first_packet_time_offset)
+                
             if first_packet_time != stream_times[-1] or i_stream == 0:
                 # new stream
                 is_dict[f'IS_{is_stream_count}'][f'Channel_{dat["Channel"]}'] = {
